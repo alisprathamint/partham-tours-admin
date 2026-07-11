@@ -570,7 +570,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Save, ArrowLeft, Image as ImageIcon, MapPin, X } from 'lucide-react';
+import { Save, ArrowLeft, Image as ImageIcon, MapPin, X, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const PackageEditor = () => {
@@ -601,6 +601,7 @@ const PackageEditor = () => {
   const [newDestination, setNewDestination] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(!isNew);
+  const [isExtractingPdf, setIsExtractingPdf] = useState(false);
 
   useEffect(() => {
     // Fetch available destinations and categories
@@ -751,6 +752,62 @@ const PackageEditor = () => {
     });
   }, []);
 
+  const handlePdfAutofill = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      alert('Please select a valid PDF file.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File is too large. Maximum allowed size is 5MB.');
+      return;
+    }
+
+    setIsExtractingPdf(true);
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/packages/extract-from-pdf', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: uploadData
+      });
+      
+      const data = await res.json();
+      
+      if (data.success && data.data) {
+        setFormData(prev => ({
+          ...prev,
+          name: data.data.name || prev.name,
+          location: data.data.location || prev.location,
+          category: data.data.category || prev.category,
+          price: data.data.price || prev.price,
+          duration: data.data.duration || prev.duration,
+          description: data.data.description || prev.description,
+          highlights: data.data.highlights || prev.highlights,
+          inclusions: data.data.inclusions || prev.inclusions,
+          exclusions: data.data.exclusions || prev.exclusions,
+          itinerary: data.data.itinerary || prev.itinerary
+        }));
+        alert('Package details extracted successfully!');
+      } else {
+        alert(`Failed to extract data: ${data.message}`);
+      }
+    } catch (err) {
+      console.error("PDF Extraction failed", err);
+      alert('An error occurred during PDF extraction.');
+    } finally {
+      setIsExtractingPdf(false);
+      e.target.value = null; // Reset input
+    }
+  };
+
   const handleSave = useCallback(async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -822,14 +879,21 @@ const PackageEditor = () => {
             </p>
           </div>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-70"
-        >
-          <Save size={18} />
-          {isSaving ? 'Saving...' : 'Save Package'}
-        </button>
+        <div className="flex items-center gap-3">
+          <label className={`flex items-center gap-2 px-4 py-2 ${isExtractingPdf ? 'bg-purple-100 text-purple-400 cursor-not-allowed' : 'bg-purple-50 hover:bg-purple-100 text-purple-600 cursor-pointer'} rounded-lg font-medium transition-colors shadow-sm`}>
+            <FileText size={18} />
+            {isExtractingPdf ? 'Extracting...' : 'Autofill from PDF (Beta)'}
+            <input type="file" accept="application/pdf" onChange={handlePdfAutofill} disabled={isExtractingPdf} className="hidden" />
+          </label>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-70"
+          >
+            <Save size={18} />
+            {isSaving ? 'Saving...' : 'Save Package'}
+          </button>
+        </div>
       </div>
 
       {/* Editor Form */}

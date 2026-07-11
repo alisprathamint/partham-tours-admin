@@ -18,12 +18,29 @@ const Sidebar = ({ isOpen }) => {
   const isExpanded = isOpen || isHovered || preRender;
 
   const menuItems = useMemo(() => [
-    { title: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} />, roles: ['ADMIN', 'SALES'] },
-    { title: 'Customer Leads', path: '/leads', icon: <FileText size={20} />, roles: ['ADMIN', 'SALES'] },
+    { title: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} />, roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES'] },
+    {
+      title: 'CRM / Sales',
+      icon: <FileText size={20} />,
+      roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES'],
+      subItems: [
+        { title: 'Leads Pool', path: '/crm/leads' },
+        { title: 'My Queries', path: '/crm/queries' }
+      ]
+    },
+    {
+      title: 'Branch Management',
+      icon: <LayoutDashboard size={20} />, // You might want to import Users icon, but using LayoutDashboard for now
+      roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'],
+      subItems: [
+        { title: 'Branches', path: '/branches', roles: ['SUPER_ADMIN', 'ADMIN'] },
+        { title: 'Users & Team', path: '/users', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] }
+      ]
+    },
     {
       title: 'Website CMS',
       icon: <LayoutTemplate size={20} />,
-      roles: ['ADMIN'],
+      roles: ['SUPER_ADMIN', 'ADMIN'],
       subItems: [
         { title: 'Home Page Sections', path: '/cms/homepage' },
         { title: 'General Content', path: '/cms/general' },
@@ -34,7 +51,7 @@ const Sidebar = ({ isOpen }) => {
     {
       title: 'Tours & Travels',
       icon: <Package size={20} />,
-      roles: ['ADMIN'],
+      roles: ['SUPER_ADMIN', 'ADMIN'],
       subItems: [
         { title: 'Packages', path: '/packages' },
         { title: 'Destinations', path: '/destinations' }
@@ -118,10 +135,23 @@ const Sidebar = ({ isOpen }) => {
 
   const filteredMenuItems = useMemo(() => {
     if (!user) return menuItems;
-    return menuItems.filter(item => {
-      if (user && !item.roles.includes(user.role)) return null;
-      return item;
-    });
+    return menuItems.reduce((acc, item) => {
+      if (!item.roles.includes(user.role)) return acc;
+      
+      let filteredItem = { ...item };
+      
+      if (filteredItem.subItems) {
+        filteredItem.subItems = filteredItem.subItems.filter(subItem => 
+          !subItem.roles || subItem.roles.includes(user.role)
+        );
+        
+        // Only include parent if it still has subitems after filtering
+        if (filteredItem.subItems.length === 0) return acc;
+      }
+      
+      acc.push(filteredItem);
+      return acc;
+    }, []);
   }, [user, menuItems]);
 
   return (

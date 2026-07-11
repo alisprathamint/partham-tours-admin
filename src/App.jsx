@@ -45,6 +45,13 @@ const Dashboard = () => (
 
 const TeamManager = () => <div className="p-8 bg-white rounded-xl shadow-sm border border-slate-200"><h2 className="text-2xl font-bold mb-4">Team Manager</h2><p className="text-slate-500">Add or remove team members here.</p></div>;
 
+const ComingSoon = ({ title }) => (
+  <div className="p-8 bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col items-center justify-center min-h-[400px]">
+    <h2 className="text-3xl font-bold text-slate-800 mb-2">{title}</h2>
+    <p className="text-slate-500 text-lg">This module is under development and will be available soon.</p>
+  </div>
+);
+
 function App() {
   return (
     <AuthProvider>
@@ -59,17 +66,25 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="leads" element={<LeadsList />} />
           
+          {/* CRM Routes (Coming Soon for Backup) */}
+          <Route path="crm/leads" element={<ComingSoon title="Leads Pool" />} />
+          <Route path="crm/queries" element={<ComingSoon title="My Queries" />} />
+          
           {/* Admin Only Routes */}
-          <Route path="cms/general" element={<ProtectedRoute allowedRoles={['ADMIN']}><GeneralContent /></ProtectedRoute>} />
-          <Route path="cms/homepage" element={<ProtectedRoute allowedRoles={['ADMIN']}><HomePageSections /></ProtectedRoute>} />
-          <Route path="cms/contact" element={<ProtectedRoute allowedRoles={['ADMIN']}><ContactInfo /></ProtectedRoute>} />
-          <Route path="packages" element={<ProtectedRoute allowedRoles={['ADMIN']}><PackageList /></ProtectedRoute>} />
-          <Route path="packages/new" element={<ProtectedRoute allowedRoles={['ADMIN']}><PackageEditor /></ProtectedRoute>} />
-          <Route path="packages/edit/:id" element={<ProtectedRoute allowedRoles={['ADMIN']}><PackageEditor /></ProtectedRoute>} />
-          <Route path="destinations" element={<ProtectedRoute allowedRoles={['ADMIN']}><DestinationList /></ProtectedRoute>} />
-          <Route path="destinations/new" element={<ProtectedRoute allowedRoles={['ADMIN']}><DestinationEditor /></ProtectedRoute>} />
-          <Route path="destinations/edit/:id" element={<ProtectedRoute allowedRoles={['ADMIN']}><DestinationEditor /></ProtectedRoute>} />
-          <Route path="cms/team" element={<ProtectedRoute allowedRoles={['ADMIN']}><TeamManager /></ProtectedRoute>} />
+          <Route path="cms/general" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><GeneralContent /></ProtectedRoute>} />
+          <Route path="cms/homepage" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><HomePageSections /></ProtectedRoute>} />
+          <Route path="cms/contact" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><ContactInfo /></ProtectedRoute>} />
+          <Route path="packages" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><PackageList /></ProtectedRoute>} />
+          <Route path="packages/new" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><PackageEditor /></ProtectedRoute>} />
+          <Route path="packages/edit/:id" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><PackageEditor /></ProtectedRoute>} />
+          <Route path="destinations" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><DestinationList /></ProtectedRoute>} />
+          <Route path="destinations/new" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><DestinationEditor /></ProtectedRoute>} />
+          <Route path="destinations/edit/:id" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><DestinationEditor /></ProtectedRoute>} />
+          <Route path="cms/team" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><TeamManager /></ProtectedRoute>} />
+          
+          {/* Branch Management Routes */}
+          <Route path="branches" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><ComingSoon title="Manage Branches" /></ProtectedRoute>} />
+          <Route path="users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER']}><ComingSoon title="Users & Team" /></ProtectedRoute>} />
         </Route>
       </Routes>
     </AuthProvider>
