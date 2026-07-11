@@ -1,95 +1,363 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, MapPin, Users, Phone, LayoutTemplate, LogOut, FileText } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Package, LayoutTemplate, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const Sidebar = () => {
-  const { user, isAdmin, logout } = useAuth();
-  const navigate = useNavigate();
+const Sidebar = ({ isOpen }) => {
+  const { user } = useAuth();
+  const [isHovered, setIsHovered] = useState(false);
+  const [expandedModules, setExpandedModules] = useState({});
+  const [isReady, setIsReady] = useState(false);
+  const location = useLocation();
+  const sidebarRef = useRef(null);
+  const hoverTimeoutRef = useRef(null);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  // Force expanded state for pre-rendering
+  const [preRender, setPreRender] = useState(false);
 
-  const menuItems = [
+  const isExpanded = isOpen || isHovered || preRender;
+
+  const menuItems = useMemo(() => [
     { title: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} />, roles: ['ADMIN', 'SALES'] },
     { title: 'Customer Leads', path: '/leads', icon: <FileText size={20} />, roles: ['ADMIN', 'SALES'] },
-    
-    // Admin Only Sections
-    { title: 'CMS (Website)', isHeader: true, roles: ['ADMIN'] },
-    { title: 'General Content', path: '/cms/general', icon: <LayoutTemplate size={20} />, roles: ['ADMIN'] },
-    { title: 'Our Team', path: '/cms/team', icon: <Users size={20} />, roles: ['ADMIN'] },
-    { title: 'Contact Info', path: '/cms/contact', icon: <Phone size={20} />, roles: ['ADMIN'] },
-    
-    { title: 'Tours & Travels', isHeader: true, roles: ['ADMIN'] },
-    { title: 'Packages', path: '/packages', icon: <Package size={20} />, roles: ['ADMIN'] },
-    { title: 'Destinations', path: '/destinations', icon: <MapPin size={20} />, roles: ['ADMIN'] },
-  ];
+    {
+      title: 'Website CMS',
+      icon: <LayoutTemplate size={20} />,
+      roles: ['ADMIN'],
+      subItems: [
+        { title: 'Home Page Sections', path: '/cms/homepage' },
+        { title: 'General Content', path: '/cms/general' },
+        { title: 'Our Team', path: '/cms/team' },
+        { title: 'Contact Info', path: '/cms/contact' }
+      ]
+    },
+    {
+      title: 'Tours & Travels',
+      icon: <Package size={20} />,
+      roles: ['ADMIN'],
+      subItems: [
+        { title: 'Packages', path: '/packages' },
+        { title: 'Destinations', path: '/destinations' }
+      ]
+    },
+  ], []);
+
+  // BACKGROUND RENDERING - Page load hotay hi sidebar render ho jaye
+  useEffect(() => {
+    // Step 1: Page load ke turant baad sidebar ko expanded karo
+    const timer1 = setTimeout(() => {
+      setPreRender(true);
+    }, 50); // 50ms delay for page load
+
+    // Step 2: 100ms baad sidebar ko wapas collapse karo
+    const timer2 = setTimeout(() => {
+      setPreRender(false);
+    }, 150); // 150ms mein expand-collapse ho jayega
+
+    // Step 3: Sab kuch ready mark karo
+    const timer3 = setTimeout(() => {
+      setIsReady(true);
+    }, 200);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, []);
+
+  // Auto-expand modules
+  useEffect(() => {
+    const newExpandedState = { ...expandedModules };
+    let changed = false;
+
+    menuItems.forEach(item => {
+      if (item.subItems) {
+        const isActiveModule = item.subItems.some(subItem => location.pathname.startsWith(subItem.path));
+        if (isActiveModule && !expandedModules[item.title]) {
+          newExpandedState[item.title] = true;
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      setExpandedModules(newExpandedState);
+    }
+  }, [location.pathname, menuItems]);
+
+  const toggleModule = useCallback((title) => {
+    if (!isExpanded) return;
+    setExpandedModules(prev => ({
+      ...prev,
+      [title]: !prev[title]
+    }));
+  }, [isExpanded]);
+
+  const handleMouseEnter = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setIsHovered(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+    }, 100);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const filteredMenuItems = useMemo(() => {
+    if (!user) return menuItems;
+    return menuItems.filter(item => {
+      if (user && !item.roles.includes(user.role)) return null;
+      return item;
+    });
+  }, [user, menuItems]);
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 shadow-sm flex-shrink-0 flex flex-col h-full z-20">
-      <div className="p-6 border-b border-slate-100">
-        <h1 className="text-2xl font-bold text-blue-600 tracking-tight flex items-center gap-2">
-          <span className="bg-blue-600 text-white p-1.5 rounded-lg">
-            <Package size={20} />
-          </span>
-          Pratham Admin
-        </h1>
-      </div>
-      
-      <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-        {menuItems.map((item, index) => {
-          // Hide items if user role is not authorized
-          if (user && !item.roles.includes(user.role)) return null;
+    <>
+      {/* Global styles for smooth animation */}
+      <style>{`
+        /* Main sidebar transition */
+        .sidebar-main {
+          transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          will-change: width !important;
+          backface-visibility: hidden !important;
+          -webkit-backface-visibility: hidden !important;
+          transform: translate3d(0, 0, 0) !important;
+          -webkit-transform: translate3d(0, 0, 0) !important;
+        }
+        
+        /* All children should use GPU */
+        .sidebar-main * {
+          backface-visibility: hidden !important;
+          -webkit-backface-visibility: hidden !important;
+          transform: translate3d(0, 0, 0) !important;
+          -webkit-transform: translate3d(0, 0, 0) !important;
+        }
+        
+        /* Text transitions */
+        .sidebar-text {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          will-change: opacity, max-width, margin !important;
+        }
+        
+        /* Submenu transitions */
+        .sidebar-submenu {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          will-change: max-height, opacity, margin !important;
+        }
+        
+        /* Scrollbar styling */
+        .sidebar-scroll::-webkit-scrollbar {
+          width: 4px;
+        }
+        
+        .sidebar-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 20px;
+        }
+        
+        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+        
+        /* Force GPU rendering for all menu items */
+        .menu-item-gpu {
+          transform: translateZ(0) !important;
+          -webkit-transform: translateZ(0) !important;
+          backface-visibility: hidden !important;
+          -webkit-backface-visibility: hidden !important;
+        }
+        
+        /* Ready state - no opacity tricks needed */
+        .sidebar-ready {
+          opacity: 1 !important;
+        }
+      `}</style>
 
-          if (item.isHeader) {
-            return (
-              <div key={index} className="pt-4 pb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                {item.title}
-              </div>
-            );
-          }
-          
-          return (
-            <NavLink
-              key={index}
-              to={item.path}
-              className={({ isActive }) => 
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-blue-50 text-blue-700' 
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`
-              }
-            >
-              <span className="opacity-80">{item.icon}</span>
-              {item.title}
-            </NavLink>
-          );
-        })}
-      </nav>
-      
-      <div className="p-4 border-t border-slate-100">
-        <div className="flex items-center gap-3 px-4 py-2 mb-4">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold uppercase">
-            {user?.name?.charAt(0) || 'U'}
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-semibold text-slate-800 truncate">{user?.name || 'User'}</p>
-            <p className="text-xs text-slate-500 truncate">{user?.role} • {user?.region}</p>
+      <aside
+        ref={sidebarRef}
+        className={`
+          sidebar-main
+          bg-white border-r border-slate-200 shadow-sm 
+          flex-shrink-0 flex flex-col h-full z-20 
+          overflow-hidden relative
+          ${isExpanded ? 'w-64' : 'w-20'}
+          ${isReady ? 'sidebar-ready' : ''}
+        `}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          // Ensure GPU acceleration
+          transform: 'translate3d(0, 0, 0)',
+          WebkitTransform: 'translate3d(0, 0, 0)'
+        }}
+      >
+        {/* Logo Section */}
+        <div className="border-b border-slate-100 flex items-center h-[72px] px-6 relative overflow-hidden flex-shrink-0 menu-item-gpu">
+          <div className="flex items-center w-full">
+            <span className="bg-blue-600 text-white p-1.5 rounded-lg flex-shrink-0 transition-transform duration-300 hover:scale-105">
+              <Package size={20} />
+            </span>
+            <div className={`
+              sidebar-text
+              overflow-hidden
+              ${isExpanded ? 'max-w-[200px] opacity-100 ml-3' : 'max-w-0 opacity-0 ml-0'}
+            `}>
+              <h1 className="font-bold text-blue-600 text-xl whitespace-nowrap">
+                Pratham Admin
+              </h1>
+            </div>
           </div>
         </div>
-        <button 
-          onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 py-2 px-4 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-        >
-          <LogOut size={16} />
-          Logout
-        </button>
-      </div>
-    </aside>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 sidebar-scroll">
+          <div className="space-y-1">
+            {filteredMenuItems.map((item, index) => {
+              if (item.subItems) {
+                const isModuleExpanded = expandedModules[item.title];
+                const isActiveModule = item.subItems.some(subItem => location.pathname.startsWith(subItem.path));
+
+                return (
+                  <div key={index} className="flex flex-col mb-1 menu-item-gpu">
+                    <button
+                      onClick={() => toggleModule(item.title)}
+                      title={!isExpanded ? item.title : ""}
+                      className={`
+                        flex items-center justify-between py-2.5 px-3 rounded-lg font-medium 
+                        transition-colors duration-200 ease-in-out w-full relative
+                        ${isActiveModule && !isModuleExpanded
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }
+                        ${!isExpanded ? 'justify-center' : ''}
+                      `}
+                      style={{
+                        transform: 'translateZ(0)',
+                        WebkitTransform: 'translateZ(0)'
+                      }}
+                    >
+                      <div className="flex items-center min-w-0 flex-1">
+                        <span className={`
+                          opacity-80 flex-shrink-0 w-6 flex items-center justify-center
+                          ${isActiveModule ? 'text-blue-600' : ''}
+                        `}>
+                          {item.icon}
+                        </span>
+                        <span className={`
+                          sidebar-text
+                          whitespace-nowrap overflow-hidden
+                          ${isExpanded ? 'max-w-[200px] opacity-100 ml-3' : 'max-w-0 opacity-0 ml-0'}
+                          ${isActiveModule ? 'text-blue-700' : ''}
+                        `}>
+                          {item.title}
+                        </span>
+                      </div>
+                      <span className={`
+                        sidebar-text
+                        flex-shrink-0
+                        ${isExpanded ? 'max-w-[24px] opacity-100 ml-2' : 'max-w-0 opacity-0 ml-0'}
+                      `}>
+                        {isModuleExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </span>
+                    </button>
+
+                    {/* Submenu */}
+                    <div className={`
+                      sidebar-submenu
+                      flex flex-col ml-9 border-l-2 border-slate-100 space-y-1 
+                      overflow-hidden
+                      ${isExpanded && isModuleExpanded
+                        ? 'max-h-[500px] opacity-100 mt-1'
+                        : 'max-h-0 opacity-0'
+                      }
+                    `}>
+                      {item.subItems.map((subItem, subIndex) => (
+                        <NavLink
+                          key={subIndex}
+                          to={subItem.path}
+                          className={({ isActive }) => `
+                            flex items-center py-2 px-4 rounded-lg text-sm 
+                            transition-colors duration-200 ease-in-out ml-2
+                            ${isActive
+                              ? 'text-blue-700 font-semibold bg-blue-50'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                            }
+                          `}
+                        >
+                          <span className="whitespace-nowrap">{subItem.title}</span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <NavLink
+                  key={index}
+                  to={item.path}
+                  title={!isExpanded ? item.title : ""}
+                  className={({ isActive }) => `
+                    flex items-center px-3 py-2.5 rounded-lg font-medium 
+                    transition-colors duration-200 ease-in-out mb-1
+                    ${!isExpanded ? 'justify-center' : ''}
+                    ${isActive
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }
+                  `}
+                  style={{
+                    transform: 'translateZ(0)',
+                    WebkitTransform: 'translateZ(0)'
+                  }}
+                >
+                  <span className="opacity-80 flex-shrink-0 w-6 flex items-center justify-center">
+                    {item.icon}
+                  </span>
+                  <span className={`
+                    sidebar-text
+                    whitespace-nowrap overflow-hidden
+                    ${isExpanded ? 'max-w-[200px] opacity-100 ml-3' : 'max-w-0 opacity-0 ml-0'}
+                  `}>
+                    {item.title}
+                  </span>
+                </NavLink>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Footer */}
+        <div className={`
+          border-t border-slate-100 p-4 transition-all duration-300 ease-in-out flex-shrink-0
+          ${isExpanded ? 'opacity-100' : 'opacity-0'}
+        `}>
+          <div className="text-xs text-slate-400 text-center">
+            {isExpanded && (
+              <span className="whitespace-nowrap">v2.0.0</span>
+            )}
+          </div>
+        </div>
+      </aside>
+    </>
   );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

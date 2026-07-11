@@ -2,9 +2,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminLayout from './components/layout/AdminLayout';
 import GeneralContent from './pages/CMS/GeneralContent';
 import ContactInfo from './pages/CMS/ContactInfo';
+import HomePageSections from './pages/CMS/HomePageSections';
 import PackageList from './pages/Packages/PackageList';
 import PackageEditor from './pages/Packages/PackageEditor';
 import DestinationList from './pages/Destinations/DestinationList';
+import DestinationEditor from './pages/Destinations/DestinationEditor';
 import Login from './pages/Auth/Login';
 import LeadsList from './pages/Leads/LeadsList';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -59,11 +61,14 @@ function App() {
           
           {/* Admin Only Routes */}
           <Route path="cms/general" element={<ProtectedRoute allowedRoles={['ADMIN']}><GeneralContent /></ProtectedRoute>} />
+          <Route path="cms/homepage" element={<ProtectedRoute allowedRoles={['ADMIN']}><HomePageSections /></ProtectedRoute>} />
           <Route path="cms/contact" element={<ProtectedRoute allowedRoles={['ADMIN']}><ContactInfo /></ProtectedRoute>} />
           <Route path="packages" element={<ProtectedRoute allowedRoles={['ADMIN']}><PackageList /></ProtectedRoute>} />
           <Route path="packages/new" element={<ProtectedRoute allowedRoles={['ADMIN']}><PackageEditor /></ProtectedRoute>} />
           <Route path="packages/edit/:id" element={<ProtectedRoute allowedRoles={['ADMIN']}><PackageEditor /></ProtectedRoute>} />
           <Route path="destinations" element={<ProtectedRoute allowedRoles={['ADMIN']}><DestinationList /></ProtectedRoute>} />
+          <Route path="destinations/new" element={<ProtectedRoute allowedRoles={['ADMIN']}><DestinationEditor /></ProtectedRoute>} />
+          <Route path="destinations/edit/:id" element={<ProtectedRoute allowedRoles={['ADMIN']}><DestinationEditor /></ProtectedRoute>} />
           <Route path="cms/team" element={<ProtectedRoute allowedRoles={['ADMIN']}><TeamManager /></ProtectedRoute>} />
         </Route>
       </Routes>

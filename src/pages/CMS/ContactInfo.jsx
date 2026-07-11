@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Phone, Mail, MapPin, MessageCircle, Globe, Link } from 'lucide-react';
+import { Save, Phone, Mail, MapPin, MessageCircle, Globe, Link, Clock, Map } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const ContactInfo = () => {
@@ -11,14 +11,16 @@ const ContactInfo = () => {
     address: '',
     facebook: '',
     instagram: '',
-    twitter: ''
+    twitter: '',
+    workingHours: '',
+    mapLink: ''
   });
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/settings')
+    fetch('http://127.0.0.1:5000/api/settings')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
@@ -42,7 +44,7 @@ const ContactInfo = () => {
     setIsSaving(true);
     
     try {
-      const response = await fetch('http://localhost:5000/api/settings', {
+      const response = await fetch('http://127.0.0.1:5000/api/settings', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -138,6 +140,34 @@ const ContactInfo = () => {
                 placeholder="123, Travel Hub, City, State - Zip"
                 className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
               ></textarea>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                <Clock size={16} className="text-slate-400" /> Working Hours
+              </label>
+              <textarea 
+                name="workingHours"
+                rows="2"
+                value={formData.workingHours || ''}
+                onChange={handleChange}
+                placeholder="Monday - Saturday: 10:00 AM - 7:00 PM"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
+              ></textarea>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                <Map size={16} className="text-slate-400" /> Google Map Link
+              </label>
+              <input 
+                type="url" 
+                name="mapLink"
+                value={formData.mapLink || ''}
+                onChange={handleChange}
+                placeholder="https://www.google.com/maps/dir/..."
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              />
             </div>
           </div>
         </div>
