@@ -103,8 +103,16 @@ body {
 }
 
 /* Optimized overflow containers */
-.overflow-y-auto,
-.overflow-x-auto,
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
 .overflow-auto {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;

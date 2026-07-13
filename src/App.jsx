@@ -9,6 +9,9 @@ import DestinationList from './pages/Destinations/DestinationList';
 import DestinationEditor from './pages/Destinations/DestinationEditor';
 import Login from './pages/Auth/Login';
 import LeadsList from './pages/Leads/LeadsList';
+import LeadsPool from './pages/CRM/LeadsPool';
+import QueriesPipeline from './pages/CRM/QueriesPipeline';
+import Dashboard from './pages/Dashboard/Dashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Protected Route Component
@@ -22,28 +25,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
-// Placeholder Pages (we will create these files next)
-const Dashboard = () => (
-  <div className="space-y-6">
-    <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Dashboard Overview</h2>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-        <div className="text-sm font-semibold text-slate-500 mb-2 uppercase tracking-wide">Total Packages</div>
-        <div className="text-4xl font-bold text-slate-800">24</div>
-      </div>
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-        <div className="text-sm font-semibold text-slate-500 mb-2 uppercase tracking-wide">Active Leads</div>
-        <div className="text-4xl font-bold text-blue-600">12</div>
-      </div>
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-        <div className="text-sm font-semibold text-slate-500 mb-2 uppercase tracking-wide">Revenue This Month</div>
-        <div className="text-4xl font-bold text-emerald-600">₹4.5L</div>
-      </div>
-    </div>
-  </div>
-);
+// The Dashboard is now imported from './pages/Dashboard/Dashboard'
 
-const TeamManager = () => <div className="p-8 bg-white rounded-xl shadow-sm border border-slate-200"><h2 className="text-2xl font-bold mb-4">Team Manager</h2><p className="text-slate-500">Add or remove team members here.</p></div>;
+import TeamManager from './pages/Team/TeamManager';
+import BranchManager from './pages/Branches/BranchManager';
 
 const ComingSoon = ({ title }) => (
   <div className="p-8 bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col items-center justify-center min-h-[400px]">
@@ -66,9 +51,9 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="leads" element={<LeadsList />} />
           
-          {/* CRM Routes (Coming Soon for Backup) */}
-          <Route path="crm/leads" element={<ComingSoon title="Leads Pool" />} />
-          <Route path="crm/queries" element={<ComingSoon title="My Queries" />} />
+          {/* CRM Routes */}
+          <Route path="crm/leads" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><LeadsPool /></ProtectedRoute>} />
+          <Route path="crm/queries" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><QueriesPipeline /></ProtectedRoute>} />
           
           {/* Admin Only Routes */}
           <Route path="cms/general" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><GeneralContent /></ProtectedRoute>} />
@@ -83,8 +68,8 @@ function App() {
           <Route path="cms/team" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><TeamManager /></ProtectedRoute>} />
           
           {/* Branch Management Routes */}
-          <Route path="branches" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><ComingSoon title="Manage Branches" /></ProtectedRoute>} />
-          <Route path="users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER']}><ComingSoon title="Users & Team" /></ProtectedRoute>} />
+          <Route path="branches" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><BranchManager /></ProtectedRoute>} />
+          <Route path="users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER']}><TeamManager /></ProtectedRoute>} />
         </Route>
       </Routes>
     </AuthProvider>
