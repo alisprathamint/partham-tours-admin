@@ -27,7 +27,16 @@ const QueriesPipeline = () => {
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isClosingEdit, setIsClosingEdit] = useState(false);
   const [editingQuery, setEditingQuery] = useState(null);
+
+  const handleCloseEditModal = () => {
+    setIsClosingEdit(true);
+    setTimeout(() => {
+      setIsClosingEdit(false);
+      setIsEditModalOpen(false);
+    }, 280);
+  };
 
   const fetchQueries = async () => {
     try {
@@ -202,7 +211,7 @@ const QueriesPipeline = () => {
       });
       const data = await res.json();
       if (data.success) {
-        setIsEditModalOpen(false);
+        handleCloseEditModal();
         fetchQueries();
       } else {
         alert('Failed to update query');
@@ -276,143 +285,129 @@ const QueriesPipeline = () => {
                     </span>
                   </div>
                   
-                  {/* Section Body (Grid of Cards) */}
-                  <div className="p-4 min-h-[120px]">
+                  {/* Section Body (Table View) */}
+                  <div className="p-0 min-h-[120px] overflow-x-auto custom-scrollbar">
                     {stageQueries.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
-                        {stageQueries.map(query => {
-                          const isDragging = draggingId === query.id;
-                          
-                          return (
-                            <div 
-                              key={query.id} 
-                              draggable={draggableCardId === query.id} 
-                              onDragStart={(e) => handleDragStart(e, query.id)}
-                              onDragEnd={handleDragEnd}
-                              className={`bg-white rounded-xl p-3.5 border transition-all duration-200 flex flex-col group ${
-                                isDragging 
-                                  ? 'border-blue-400 shadow-xl scale-105 rotate-1 z-50' 
-                                  : 'border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-md'
-                              } ${draggableCardId === query.id ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                            >
-                              {/* Card Header: Avatar & Name */}
-                              <div className="flex justify-between items-start mb-3">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm flex-shrink-0">
-                                    {getInitials(query.name)}
-                                  </div>
-                                  <div>
-                                    <h4 className="font-bold text-slate-800 text-sm leading-tight group-hover:text-blue-600 transition-colors truncate max-w-[120px]">{query.name}</h4>
-                                    <div className="text-[10px] font-medium text-slate-400 mt-0.5">#{query.id + 2500000}</div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center text-slate-400 relative">
-                                  <button 
-                                    className="p-1 hover:bg-slate-50 hover:text-slate-600 rounded cursor-grab active:cursor-grabbing" 
-                                    title="Drag Card"
-                                    onMouseEnter={() => setDraggableCardId(query.id)}
-                                    onMouseLeave={() => setDraggableCardId(null)}
-                                  >
-                                    <GripVertical size={16} />
-                                  </button>
-                                  <button 
-                                    className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-md hover:bg-slate-100 flex-shrink-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setOpenDropdownId(openDropdownId === query.id ? null : query.id);
-                                    }}
-                                  >
-                                    <MoreVertical size={14} />
-                                  </button>
-
-                                  {/* Dropdown Menu */}
-                                  {openDropdownId === query.id && (
-                                    <div 
-                                      className="absolute top-8 right-0 w-36 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200"
+                      <table className="w-full text-left border-collapse whitespace-nowrap">
+                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                          <tr>
+                            <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/4">Client</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Contact</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Trip Details</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Updated</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {stageQueries.map(query => {
+                            const isDragging = draggingId === query.id;
+                            
+                            return (
+                              <tr 
+                                key={query.id} 
+                                draggable={draggableCardId === query.id} 
+                                onDragStart={(e) => handleDragStart(e, query.id)}
+                                onDragEnd={handleDragEnd}
+                                className={`bg-white hover:bg-blue-50/50 transition-colors group ${
+                                  isDragging ? 'opacity-50' : ''
+                                } ${draggableCardId === query.id ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                              >
+                                {/* Client Info */}
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <button 
+                                      className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing flex-shrink-0" 
+                                      onMouseEnter={() => setDraggableCardId(query.id)}
+                                      onMouseLeave={() => setDraggableCardId(null)}
+                                      title="Drag Row"
                                     >
-                                      <div className="py-1">
-                                        <button 
-                                          onClick={() => {
-                                            setOpenDropdownId(null);
-                                            handleEditClick(query);
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                                        >
-                                          Edit Details
-                                        </button>
-                                        <button 
-                                          onClick={() => {
-                                            setOpenDropdownId(null);
-                                            const note = window.prompt('Enter your note:');
-                                            if (note) handleAddNote(query.id, note);
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                                        >
-                                          Add Note
-                                        </button>
-                                        <div className="h-px bg-slate-100 my-1"></div>
-                                        <button 
-                                          onClick={() => {
-                                            setOpenDropdownId(null);
-                                            handleDeleteQuery(query.id);
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
-                                        >
-                                          Delete Query
-                                        </button>
-                                      </div>
+                                      <GripVertical size={16} />
+                                    </button>
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm flex-shrink-0">
+                                      {getInitials(query.name)}
                                     </div>
+                                    <div>
+                                      <h4 className="font-bold text-slate-800 text-sm leading-tight truncate max-w-[150px]">{query.name}</h4>
+                                      <div className="text-[10px] font-medium text-slate-400 mt-0.5">#{query.id + 2500000}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                
+                                {/* Contact */}
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                                    <Phone size={12} className="text-slate-400" /> {query.phone}
+                                  </div>
+                                </td>
+
+                                {/* Trip Details */}
+                                <td className="px-4 py-3">
+                                  {query.destination ? (
+                                    <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                                      <MapPin size={12} className="text-blue-500" />
+                                      <span className="font-medium truncate max-w-[120px]">{query.destination}</span>
+                                      {query.numDays && <span className="text-slate-400 ml-1">({query.numDays}D)</span>}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-slate-400 italic">Not specified</span>
                                   )}
-                                </div>
-                              </div>
-                              
-                              {/* Card Details */}
-                              <div className="space-y-2 mb-3 flex-1">
-                                {query.destination && (
-                                  <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded w-fit border border-slate-100">
-                                    <MapPin size={12} className="text-blue-500" />
-                                    <span className="font-medium truncate max-w-[100px]">{query.destination}</span>
-                                    {query.numDays && <span className="text-slate-400 ml-1">({query.numDays}D)</span>}
-                                  </div>
-                                )}
-                                <div className="flex items-center justify-between text-[11px] text-slate-500">
-                                  <div className="flex items-center gap-1">
-                                    <Phone size={11} /> {query.phone}
-                                  </div>
-                                  <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 font-medium">
+                                </td>
+
+                                {/* Updated */}
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded w-fit font-medium border border-amber-200/50">
                                     <Clock size={10} /> {new Date(query.updatedAt).toLocaleDateString('en-GB', {day: 'numeric', month: 'short'})}
                                   </div>
-                                </div>
-                              </div>
+                                </td>
 
-                              {/* Divider */}
-                              <div className="h-px bg-slate-100 my-2.5 w-full"></div>
-
-                              {/* Action Buttons */}
-                              <div className="flex items-center justify-between">
-                                <div className="flex gap-1.5">
-                                  <button className="w-7 h-7 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors border border-emerald-100 hover:border-emerald-500 shadow-sm" title="WhatsApp">
-                                    <MessageCircle size={13} />
-                                  </button>
-                                  <button className="w-7 h-7 rounded bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors border border-blue-100 hover:border-blue-600 shadow-sm" title="Call">
-                                    <Phone size={13} />
-                                  </button>
-                                </div>
-                                
-                                <button 
-                                  onClick={() => handleOpenQuotation(query)}
-                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors text-[10px] font-medium shadow-sm"
-                                >
-                                  <FileText size={12} />
-                                  Quotation
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                                {/* Actions */}
+                                <td className="px-4 py-3 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button className="w-7 h-7 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100 hover:border-emerald-500" title="WhatsApp">
+                                      <MessageCircle size={13} />
+                                    </button>
+                                    <button className="w-7 h-7 rounded bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 hover:border-blue-600" title="Call">
+                                      <Phone size={13} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleOpenQuotation(query)}
+                                      className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors text-[10px] font-medium shadow-sm ml-1"
+                                    >
+                                      <FileText size={12} />
+                                      Quote
+                                    </button>
+                                    
+                                    {/* Dropdown Menu Toggle */}
+                                    <div className="relative flex items-center">
+                                      <button 
+                                        className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-md hover:bg-slate-100 ml-1"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenDropdownId(openDropdownId === query.id ? null : query.id);
+                                        }}
+                                      >
+                                        <MoreVertical size={14} />
+                                      </button>
+                                      {openDropdownId === query.id && (
+                                        <div className="absolute top-8 right-0 w-36 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200 text-left">
+                                          <div className="py-1">
+                                            <button onClick={() => { setOpenDropdownId(null); handleEditClick(query); }} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">Edit Details</button>
+                                            <button onClick={() => { setOpenDropdownId(null); const note = window.prompt('Enter your note:'); if (note) handleAddNote(query.id, note); }} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">Add Note</button>
+                                            <div className="h-px bg-slate-100 my-1"></div>
+                                            <button onClick={() => { setOpenDropdownId(null); handleDeleteQuery(query.id); }} className="w-full text-left px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors">Delete Query</button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     ) : (
-                      <div className="flex flex-col items-center justify-center h-24 text-slate-400 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50/50 w-full hover:bg-slate-100 transition-colors mx-auto">
+                      <div className="flex flex-col items-center justify-center h-24 text-slate-400 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50/50 m-4 hover:bg-slate-100 transition-colors">
                         <span className="text-xs font-medium">Drop queries here to move to {stage.label}</span>
                       </div>
                     )}
@@ -450,11 +445,11 @@ const QueriesPipeline = () => {
 
       {/* Edit Query Modal */}
       {isEditModalOpen && createPortal(
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-slide-in-up">
+        <div className={`fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm ${isClosingEdit ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto ${isClosingEdit ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
             <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-sm font-bold text-slate-800">Edit Query Details</h3>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md p-1 transition-colors">&times;</button>
+              <button onClick={handleCloseEditModal} className="text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md p-1 transition-colors">&times;</button>
             </div>
             
             <form onSubmit={handleUpdateQuery} className="p-5 space-y-3.5">
@@ -547,7 +542,7 @@ const QueriesPipeline = () => {
               </div>
               
               <div className="pt-4 mt-2 border-t border-slate-100 flex justify-end gap-2.5">
-                <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-1.5 text-xs text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors border border-transparent hover:border-slate-200">
+                <button type="button" onClick={handleCloseEditModal} className="px-4 py-1.5 text-xs text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors border border-transparent hover:border-slate-200">
                   Cancel
                 </button>
                 <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Search, MoreVertical, Edit2, Key, UserX, Users, Shield, Briefcase, Building, Mail, X } from 'lucide-react';
+import { Plus, Search, MoreVertical, Edit2, Key, UserX, Users, Shield, Briefcase, Building, Mail, X, Filter, ChevronDown, CheckCircle, Clock } from 'lucide-react';
 
 // Mock Data for UI presentation until Backend is linked
 const MOCK_USERS = [
@@ -18,37 +18,126 @@ const ROLES = [
   { value: 'SALES_EXECUTIVE', label: 'Sales Executive', desc: 'Can only see their assigned leads' },
 ];
 
+const CustomSelect = ({ label, options, value, onChange, placeholder = "Select..." }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(opt => String(opt.value) === String(value));
+
+  return (
+    <div className="w-full">
+      <label className="block text-xs font-bold text-slate-700 mb-1.5">{label}</label>
+      <div className="relative" ref={dropdownRef}>
+        <div 
+          onClick={() => setIsOpen(!isOpen)}
+          className={`w-full min-w-[140px] px-3 py-2 bg-white border ${isOpen ? 'border-blue-500 ring-2 ring-blue-500' : 'border-slate-300'} rounded-md text-sm text-slate-900 font-medium cursor-pointer flex justify-between items-center shadow-sm transition-shadow`}
+        >
+          <span className={value && value !== 'ALL' ? 'text-slate-900' : 'text-slate-500'}>{selectedOption && value !== 'ALL' ? selectedOption.label : placeholder}</span>
+          <div className={`text-slate-500 transition-transform duration-300 ml-2 ${isOpen ? '-rotate-180' : ''}`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
+            <div 
+              className="px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
+              onClick={() => { onChange("ALL"); setIsOpen(false); }}
+            >
+              {placeholder}
+            </div>
+            {options.map((opt) => (
+              <div 
+                key={opt.value}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 ${String(value) === String(opt.value) && value !== 'ALL' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700'}`}
+                onClick={() => { onChange(String(opt.value)); setIsOpen(false); }}
+              >
+                {opt.label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const TeamManager = () => {
   const { user, token } = useAuth();
   const [users, setUsers] = useState([]);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch('http://127.0.0.1:5000/api/users', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.success) {
-          setUsers(data.data.map(u => ({
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            role: u.role,
-            branch: u.branch?.name || 'Unassigned',
-            status: 'ACTIVE',
-            joined: new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-          })));
-        }
-      } catch (err) {
-        console.error('Error fetching users:', err);
+  const [branches, setBranches] = useState([]);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUsers(data.data.map(u => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          branchId: u.branchId,
+          branch: u.branch?.name || 'Unassigned',
+          status: u.status || 'ACTIVE',
+          joined: new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        })));
       }
-    };
-    if (token) fetchUsers();
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
+  const fetchBranches = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/branches', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBranches(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchUsers();
+      fetchBranches();
+    }
   }, [token]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [branchFilter, setBranchFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sortFilter, setSortFilter] = useState('NEWEST');
+  const [openDropdownId, setOpenDropdownId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  const handleCloseModal = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      setIsModalOpen(false);
+    }, 280);
+  };
   const [editingUserId, setEditingUserId] = useState(null);
 
   // Prevent background scrolling when modal is open
@@ -68,6 +157,19 @@ const TeamManager = () => {
       if (mainEl) mainEl.style.overflow = '';
     };
   }, [isModalOpen]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdownId(null);
+    };
+    if (openDropdownId !== null) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openDropdownId]);
   
   // New User Form State
   const [formData, setFormData] = useState({
@@ -94,15 +196,27 @@ const TeamManager = () => {
     return <span className="bg-rose-50 text-rose-600 px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 w-fit"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Inactive</span>;
   };
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  let filteredUsers = users.filter(u => {
+    const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
+    const matchesBranch = branchFilter === 'ALL' || u.branch === branchFilter;
+    const matchesStatus = statusFilter === 'ALL' || u.status === statusFilter;
+    return matchesSearch && matchesRole && matchesBranch && matchesStatus;
+  });
+
+  if (sortFilter === 'NEWEST') {
+    filteredUsers.sort((a, b) => b.id - a.id);
+  } else if (sortFilter === 'OLDEST') {
+    filteredUsers.sort((a, b) => a.id - b.id);
+  }
+
+  const uniqueBranches = ['ALL', ...new Set(users.map(u => u.branch))];
 
   const handleOpenAddModal = () => {
     setIsEditing(false);
     setEditingUserId(null);
-    setFormData({ name: '', email: '', password: '', role: 'SALES_EXECUTIVE', branch: 'Head Office (Mumbai)' });
+    setFormData({ name: '', email: '', password: '', role: 'SALES_EXECUTIVE', branchId: '' });
     setIsModalOpen(true);
   };
 
@@ -114,55 +228,102 @@ const TeamManager = () => {
       email: userToEdit.email,
       password: '', // Don't show existing password
       role: userToEdit.role,
-      branch: userToEdit.branch
+      branchId: userToEdit.branchId
     });
     setIsModalOpen(true);
   };
 
-  const handleToggleStatus = (userId) => {
-    setUsers(users.map(u => {
-      if (u.id === userId) {
-        return { ...u, status: u.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' };
+  const handleToggleStatus = async (userId) => {
+    const userToToggle = users.find(u => u.id === userId);
+    if (!userToToggle) return;
+    try {
+      const newStatus = userToToggle.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      const res = await fetch(`http://127.0.0.1:5000/api/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        fetchUsers();
       }
-      return u;
-    }));
+    } catch (err) {
+      console.error('Failed to toggle status', err);
+    }
   };
 
-  const handleResetPassword = (email) => {
-    // Mock functionality
-    alert(`A password reset link has been sent to ${email}`);
+  const handleDeleteUser = async (userId) => {
+    if (confirm("Are you sure you want to delete this user?")) {
+      try {
+        const res = await fetch(`http://127.0.0.1:5000/api/users/${userId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          fetchUsers();
+        } else {
+          alert(data.message || 'Failed to delete user');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    setOpenDropdownId(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleResetPassword = async (email) => {
+    // Ideally this could call a reset endpoint, but for now we'll allow manual reset in Edit form.
+    alert(`Please use the Edit User option to set a new password for ${email}`);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (isEditing) {
-      setUsers(users.map(u => {
-        if (u.id === editingUserId) {
-          return {
-            ...u,
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            branch: formData.branch,
-          };
-        }
-        return u;
-      }));
-    } else {
-      const newUser = {
-        id: Date.now(),
+    try {
+      const payload = {
         name: formData.name,
         email: formData.email,
         role: formData.role,
-        branch: formData.branch,
-        status: 'ACTIVE',
-        joined: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
       };
-      setUsers([...users, newUser]);
+      
+      // Pass branchId. If user is MANAGER, the backend will auto-assign their branch anyway,
+      // but if ADMIN, they can select it.
+      if (formData.branchId) {
+        payload.branchId = formData.branchId;
+      }
+      
+      if (formData.password) {
+        payload.password = formData.password;
+      }
+
+      let url = 'http://127.0.0.1:5000/api/register';
+      let method = 'POST';
+
+      if (isEditing) {
+        url = `http://127.0.0.1:5000/api/users/${editingUserId}`;
+        method = 'PUT';
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        fetchUsers();
+        handleCloseModal();
+      } else {
+        alert(data.message || 'Failed to save user');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error saving user');
     }
-    
-    setIsModalOpen(false);
   };
 
   return (
@@ -174,24 +335,68 @@ const TeamManager = () => {
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Team & Users</h1>
           <p className="text-sm text-slate-500 mt-1">Manage your staff, assign roles, and control access to the CRM.</p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search users..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-64 shadow-sm"
-            />
-          </div>
-          <button 
-            onClick={handleOpenAddModal}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm transition-colors whitespace-nowrap"
-          >
-            <Plus size={16} /> Add Member
-          </button>
+        <button 
+          onClick={handleOpenAddModal}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-colors whitespace-nowrap"
+        >
+          <Plus size={18} /> Add Member
+        </button>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="bg-slate-50/50 p-5 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col gap-4 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-x-5 gap-y-4 items-end">
+           <CustomSelect 
+             label="Select Role"
+             placeholder="All Roles"
+             value={roleFilter}
+             onChange={setRoleFilter}
+             options={ROLES.map(r => ({ value: r.value, label: r.label }))}
+           />
+           
+           <CustomSelect 
+             label="Select Branch"
+             placeholder="All Branches"
+             value={branchFilter}
+             onChange={setBranchFilter}
+             options={uniqueBranches.filter(b => b !== 'ALL').map(b => ({ value: b, label: b }))}
+           />
+           
+           <CustomSelect 
+             label="Select Status"
+             placeholder="All Status"
+             value={statusFilter}
+             onChange={setStatusFilter}
+             options={[
+               { value: 'ACTIVE', label: 'Active' },
+               { value: 'INACTIVE', label: 'Inactive' }
+             ]}
+           />
+           
+           <CustomSelect 
+             label="Sort By"
+             placeholder="Sort Order"
+             value={sortFilter}
+             onChange={setSortFilter}
+             options={[
+               { value: 'NEWEST', label: 'Newest First' },
+               { value: 'OLDEST', label: 'Oldest First' }
+             ]}
+           />
+
+           <div>
+             <label className="block text-xs font-bold text-slate-700 mb-1.5">Search Staff</label>
+             <div className="relative">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+               <input 
+                 type="text" 
+                 placeholder="Search by name or email..." 
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow shadow-sm"
+               />
+             </div>
+           </div>
         </div>
       </div>
 
@@ -252,32 +457,52 @@ const TeamManager = () => {
                       {u.joined}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="relative inline-block text-left">
                         <button 
-                          onClick={() => handleEditClick(u)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" 
-                          title="Edit User"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdownId(openDropdownId === `row-${u.id}` ? null : `row-${u.id}`);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" 
                         >
-                          <Edit2 size={16} />
+                          <MoreVertical size={18} />
                         </button>
-                        <button 
-                          onClick={() => handleResetPassword(u.email)}
-                          className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" 
-                          title="Reset Password"
-                        >
-                          <Key size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleToggleStatus(u.id)}
-                          className={`p-1.5 rounded transition-colors ${
-                            u.status === 'ACTIVE' 
-                              ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' 
-                              : 'text-rose-500 hover:text-emerald-600 hover:bg-emerald-50'
-                          }`}
-                          title={u.status === 'ACTIVE' ? "Deactivate User" : "Activate User"}
-                        >
-                          <UserX size={16} />
-                        </button>
+
+                        {openDropdownId === `row-${u.id}` && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-100 z-50 py-1 animate-in fade-in zoom-in-95 duration-100">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditClick(u);
+                                setOpenDropdownId(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                            >
+                              <Edit2 size={14} className="text-blue-500" /> Edit Member
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleResetPassword(u.email);
+                                setOpenDropdownId(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                            >
+                              <Key size={14} className="text-amber-500" /> Reset Password
+                            </button>
+                            <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleStatus(u.id);
+                                setOpenDropdownId(null);
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${u.status === 'ACTIVE' ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                            >
+                              <UserX size={14} /> {u.status === 'ACTIVE' ? 'Deactivate Member' : 'Activate Member'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -290,8 +515,8 @@ const TeamManager = () => {
 
       {/* Add/Edit Member Modal */}
       {isModalOpen && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:pt-24 pb-4 sm:pb-8 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-full overflow-hidden">
+        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:pt-24 pb-4 sm:pb-8 bg-slate-900/50 backdrop-blur-sm ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-full overflow-hidden ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
             
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
               <div>
@@ -299,7 +524,7 @@ const TeamManager = () => {
                 <p className="text-xs text-slate-500 mt-0.5">{isEditing ? 'Update account details.' : 'Create a new account for your staff.'}</p>
               </div>
               <button 
-                onClick={() => setIsModalOpen(false)}
+                onClick={handleCloseModal}
                 className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X size={20} />
@@ -346,61 +571,65 @@ const TeamManager = () => {
 
                 <div className="h-px bg-slate-100 my-4"></div>
 
-                {/* Role Selection */}
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                    <Shield size={14} className="text-blue-500" /> Assign Role
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {ROLES.map((role) => (
-                      <div 
-                        key={role.value}
-                        onClick={() => setFormData({...formData, role: role.value})}
-                        className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                          formData.role === role.value 
-                          ? 'border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-500' 
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-xs font-bold ${formData.role === role.value ? 'text-blue-700' : 'text-slate-700'}`}>
-                            {role.label}
-                          </span>
-                          <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
-                            formData.role === role.value ? 'border-blue-600' : 'border-slate-300'
-                          }`}>
-                            {formData.role === role.value && <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>}
+                {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                  <>
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                        <Shield size={14} className="text-blue-500" /> Assign Role
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {ROLES.map((role) => (
+                          <div 
+                            key={role.value}
+                            onClick={() => setFormData({...formData, role: role.value})}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                              formData.role === role.value 
+                              ? 'border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-500' 
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`text-xs font-bold ${formData.role === role.value ? 'text-blue-700' : 'text-slate-700'}`}>
+                                {role.label}
+                              </span>
+                              <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                                formData.role === role.value ? 'border-blue-600' : 'border-slate-300'
+                              }`}>
+                                {formData.role === role.value && <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>}
+                              </div>
+                            </div>
+                            <p className={`text-[10px] leading-snug ${formData.role === role.value ? 'text-blue-600/80' : 'text-slate-500'}`}>
+                              {role.desc}
+                            </p>
                           </div>
-                        </div>
-                        <p className={`text-[10px] leading-snug ${formData.role === role.value ? 'text-blue-600/80' : 'text-slate-500'}`}>
-                          {role.desc}
-                        </p>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
 
-                {/* Branch Selection */}
-                <div className="space-y-1.5 pt-2">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                    <Briefcase size={14} className="text-blue-500" /> Assign Branch
-                  </label>
-                  <select 
-                    value={formData.branch} onChange={(e) => setFormData({...formData, branch: e.target.value})}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
-                  >
-                    <option>Head Office (Mumbai)</option>
-                    <option>Delhi Branch</option>
-                    <option>Remote / Work from Home</option>
-                  </select>
-                </div>
+                    <div className="space-y-1.5 pt-2">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                        <Briefcase size={14} className="text-blue-500" /> Assign Branch
+                      </label>
+                      <select 
+                        value={formData.branchId || ''} 
+                        onChange={(e) => setFormData({...formData, branchId: e.target.value})}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+                      >
+                        <option value="">-- Select Branch --</option>
+                        {branches.map(b => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
 
               </div>
 
               <div className="p-4 sm:p-6 border-t border-slate-100 flex justify-end gap-3 bg-white shrink-0">
                 <button 
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleCloseModal}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
                 >
                   Cancel

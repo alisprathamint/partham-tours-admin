@@ -3,6 +3,16 @@ import { createPortal } from 'react-dom';
 import { X, Calendar, Clock, Bell, User, Phone, CheckCircle2 } from 'lucide-react';
 
 const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 280);
+  };
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -113,8 +123,8 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm overflow-y-auto flex p-4 animate-fade-in">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl m-auto flex flex-col overflow-hidden animate-slide-in-up relative z-[10000]">
+    <div className={`fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm overflow-y-auto flex p-4 ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+      <div className={`bg-white rounded-xl shadow-2xl w-full max-w-xl m-auto flex flex-col overflow-hidden ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'} relative z-[10000]`}>
         
         {/* Header */}
         <div className="px-4 py-2.5 border-b border-slate-200 flex justify-between items-center bg-slate-50 flex-shrink-0">
@@ -124,7 +134,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
               Log Follow-Up
             </h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200 p-1 rounded-full transition-colors cursor-pointer">
+          <button onClick={handleClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200 p-1 rounded-full transition-colors cursor-pointer">
             <X size={16} />
           </button>
         </div>
@@ -333,7 +343,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
         <div className="px-4 py-2.5 border-t border-slate-200 bg-slate-50 flex justify-end gap-2 flex-shrink-0 rounded-b-xl relative z-[10000]">
           <button 
             type="button" 
-            onClick={onClose} 
+            onClick={handleClose} 
             className="px-3 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >
             Cancel

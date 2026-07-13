@@ -11,6 +11,7 @@ import Login from './pages/Auth/Login';
 import LeadsList from './pages/Leads/LeadsList';
 import LeadsPool from './pages/CRM/LeadsPool';
 import QueriesPipeline from './pages/CRM/QueriesPipeline';
+import TeamPipeline from './pages/CRM/TeamPipeline';
 import Dashboard from './pages/Dashboard/Dashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -54,6 +55,7 @@ function App() {
           {/* CRM Routes */}
           <Route path="crm/leads" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><LeadsPool /></ProtectedRoute>} />
           <Route path="crm/queries" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><QueriesPipeline /></ProtectedRoute>} />
+          <Route path="crm/team-pipeline" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER']}><TeamPipeline /></ProtectedRoute>} />
           
           {/* Admin Only Routes */}
           <Route path="cms/general" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><GeneralContent /></ProtectedRoute>} />

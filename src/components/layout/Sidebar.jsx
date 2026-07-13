@@ -25,7 +25,8 @@ const Sidebar = ({ isOpen }) => {
       roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES'],
       subItems: [
         { title: 'Leads Pool', path: '/crm/leads' },
-        { title: 'My Queries', path: '/crm/queries' }
+        { title: 'My Queries', path: '/crm/queries' },
+        { title: 'Team Pipeline', path: '/crm/team-pipeline', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] }
       ]
     },
     {

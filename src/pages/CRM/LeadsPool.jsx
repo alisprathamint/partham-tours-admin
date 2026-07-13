@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Eye, MessageSquare, Edit2, Search, FileText } from 'lucide-react';
+import { Eye, MessageSquare, Edit2, Search, FileText, Briefcase, MoreVertical } from 'lucide-react';
 import FollowUpModal from './FollowUpModal';
 import SendQuotationModal from './SendQuotationModal';
 
@@ -70,11 +70,43 @@ const LeadsPool = () => {
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
   const [bulkAssignTarget, setBulkAssignTarget] = useState("");
+  const [assignMode, setAssignMode] = useState("BRANCH"); // 'BRANCH' or 'EXECUTIVE'
+  const [bulkAssignBranch, setBulkAssignBranch] = useState("");
+  const [bulkAssignSearch, setBulkAssignSearch] = useState("");
   const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+  const [branches, setBranches] = useState([]);
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isClosingEdit, setIsClosingEdit] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
+
+  const handleCloseEditModal = () => {
+    setIsClosingEdit(true);
+    setTimeout(() => {
+      setIsClosingEdit(false);
+      setIsEditModalOpen(false);
+    }, 280);
+  };
+
+  const [isClosingBulk, setIsClosingBulk] = useState(false);
+  
+  const handleCloseBulkAssignModal = () => {
+    setIsClosingBulk(true);
+    setTimeout(() => {
+      setIsClosingBulk(false);
+      setIsBulkAssignModalOpen(false);
+    }, 280);
+  };
+
+  // Dropdown State
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null);
+    if (openDropdownId !== null) document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openDropdownId]);
 
   // Follow Up Modal State
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
@@ -83,6 +115,66 @@ const LeadsPool = () => {
   // Quotation Modal State
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
   const [selectedQuotationLead, setSelectedQuotationLead] = useState(null);
+
+  // View Details Modal State
+  const [isViewDetailsOpen, setIsViewDetailsOpen] = useState(false);
+  const [isClosingViewDetails, setIsClosingViewDetails] = useState(false);
+  const [activeViewLead, setActiveViewLead] = useState(null);
+
+  const handleCloseViewDetails = () => {
+    setIsClosingViewDetails(true);
+    setTimeout(() => {
+      setIsClosingViewDetails(false);
+      setIsViewDetailsOpen(false);
+      setActiveViewLead(null);
+    }, 280);
+  };
+
+  // Comments Modal State
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [isClosingComments, setIsClosingComments] = useState(false);
+  const [activeCommentsLead, setActiveCommentsLead] = useState(null);
+  const [newComment, setNewComment] = useState("");
+
+  const handleCloseComments = () => {
+    setIsClosingComments(true);
+    setTimeout(() => {
+      setIsClosingComments(false);
+      setIsCommentsOpen(false);
+      setActiveCommentsLead(null);
+      setNewComment("");
+    }, 280);
+  };
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || !activeCommentsLead) return;
+
+    try {
+      const res = await fetch(`http://127.0.0.1:5000/api/crm/leads/${activeCommentsLead.id}/notes`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: newComment })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActiveCommentsLead(prev => ({
+          ...prev,
+          notes: [...(prev.notes || []), data.data]
+        }));
+        setNewComment("");
+        fetchLeads();
+      } else {
+        alert('Failed to add comment');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error adding comment');
+    }
+  };
 
   // Filter States
   const [isFilterExpanded, setIsFilterExpanded] = useState(true);
@@ -144,11 +236,26 @@ const LeadsPool = () => {
     }
   };
 
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/branches', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setBranches(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+    }
+  };
+
   useEffect(() => {
     if (token) {
       fetchLeads();
       fetchDestinations();
       fetchUsers();
+      fetchBranches();
     }
   }, [token]);
 
@@ -197,7 +304,7 @@ const LeadsPool = () => {
       });
       const data = await res.json();
       if (data.success) {
-        setIsEditModalOpen(false);
+        handleCloseEditModal();
         fetchLeads();
       } else {
         alert('Failed to update lead');
@@ -274,8 +381,23 @@ const LeadsPool = () => {
     }
   };
 
+  const handleOpenBulkAssignModal = () => {
+    if (user?.role === 'BRANCH_MANAGER') {
+      setAssignMode('EXECUTIVE');
+      setBulkAssignBranch(user?.branchId?.toString());
+    } else {
+      setAssignMode('BRANCH');
+      setBulkAssignBranch("");
+    }
+    setBulkAssignTarget("");
+    setBulkAssignSearch("");
+    setIsBulkAssignModalOpen(true);
+  };
+
   const handleBulkAssignSubmit = async () => {
-    if (!bulkAssignTarget) return alert("Please select a user.");
+    if (assignMode === "EXECUTIVE" && !bulkAssignTarget) return alert("Please select an executive.");
+    if (assignMode === "BRANCH" && !bulkAssignBranch) return alert("Please select a branch.");
+    
     setIsBulkAssigning(true);
     try {
       const response = await fetch('http://127.0.0.1:5000/api/crm/leads/bulk-assign', {
@@ -286,13 +408,16 @@ const LeadsPool = () => {
         },
         body: JSON.stringify({
           leadIds: selectedLeads,
-          assignedToId: bulkAssignTarget
+          assignedToId: assignMode === "EXECUTIVE" ? bulkAssignTarget : null,
+          branchId: bulkAssignBranch
         })
       });
       const data = await response.json();
       if (data.success) {
-        setIsBulkAssignModalOpen(false);
+        handleCloseBulkAssignModal();
         setBulkAssignTarget("");
+        setBulkAssignBranch("");
+        setBulkAssignSearch("");
         setSelectedLeads([]);
         fetchLeads();
       } else {
@@ -491,7 +616,7 @@ const LeadsPool = () => {
             {selectedLeads.length} lead{selectedLeads.length > 1 ? 's' : ''} selected
           </div>
           <button
-            onClick={() => setIsBulkAssignModalOpen(true)}
+            onClick={handleOpenBulkAssignModal}
             className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded text-sm transition-colors shadow-sm"
           >
             Assign Selected
@@ -559,7 +684,6 @@ const LeadsPool = () => {
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-600">
                       <span className="text-slate-400">📞</span> {lead.phone} 
-                      <button onClick={() => handleEditClick(lead)} className="text-slate-400 hover:text-blue-600 transition-colors ml-1"><Edit2 size={12} /></button>
                     </div>
                     {lead.email && (
                       <div className="flex items-center gap-1.5 text-slate-600">
@@ -615,18 +739,63 @@ const LeadsPool = () => {
                     <div className="text-slate-700 whitespace-nowrap">{lead.assignedTo?.name || 'Unassigned'}</div>
                   </td>
                   <td className="px-2 py-2.5 border-l border-slate-200">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="flex gap-2">
-                        <button className="text-slate-400 hover:text-blue-600 transition-colors" title="View"><Eye size={14} /></button>
-                        <button className="text-slate-400 hover:text-blue-600 transition-colors" title="Comments/Chat"><MessageSquare size={14} /></button>
-                      </div>
+                    <div className="relative inline-block text-left w-full text-center">
                       <button 
-                        onClick={() => handleOpenQuotation(lead)}
-                        className="text-slate-400 hover:text-blue-600 transition-colors flex items-center gap-1 bg-slate-50 hover:bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-[9px] font-medium" 
-                        title="Send Quotation"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenDropdownId(openDropdownId === lead.id ? null : lead.id);
+                        }}
+                        className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors" 
                       >
-                        <FileText size={10} /> Quote
+                        <MoreVertical size={16} />
                       </button>
+
+                      {openDropdownId === lead.id && (
+                        <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-slate-100 z-50 py-1 animate-in fade-in zoom-in-95 duration-100 text-left">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditClick(lead);
+                              setOpenDropdownId(null);
+                            }}
+                            className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                          >
+                            <Edit2 size={12} className="text-blue-500" /> Edit Lead
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenQuotation(lead);
+                              setOpenDropdownId(null);
+                            }}
+                            className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                          >
+                            <FileText size={12} className="text-emerald-500" /> Send Quotation
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveViewLead(lead);
+                              setIsViewDetailsOpen(true);
+                              setOpenDropdownId(null);
+                            }}
+                            className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                          >
+                            <Eye size={12} className="text-indigo-500" /> View Details
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveCommentsLead(lead);
+                              setIsCommentsOpen(true);
+                              setOpenDropdownId(null);
+                            }}
+                            className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                          >
+                            <MessageSquare size={12} className="text-purple-500" /> Comments
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -638,11 +807,11 @@ const LeadsPool = () => {
 
       {/* Edit Lead Modal */}
       {isEditModalOpen && createPortal(
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-slide-in-up">
+        <div className={`fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm ${isClosingEdit ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto ${isClosingEdit ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
             <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-sm font-bold text-slate-800">Complete Lead Details</h3>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md p-1 transition-colors">&times;</button>
+              <button onClick={handleCloseEditModal} className="text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md p-1 transition-colors">&times;</button>
             </div>
             
             <form onSubmit={handleUpdateLead} className="p-5 space-y-3.5">
@@ -735,7 +904,7 @@ const LeadsPool = () => {
               </div>
 
               <div className="pt-4 mt-2 border-t border-slate-100 flex justify-end gap-2.5">
-                <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-1.5 text-xs text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors border border-transparent hover:border-slate-200">
+                <button type="button" onClick={handleCloseEditModal} className="px-4 py-1.5 text-xs text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors border border-transparent hover:border-slate-200">
                   Cancel
                 </button>
                 <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
@@ -765,42 +934,241 @@ const LeadsPool = () => {
 
       {/* Bulk Assign Modal */}
       {isBulkAssignModalOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h3 className="font-bold text-slate-800 text-base">Bulk Assign Leads</h3>
-              <button onClick={() => setIsBulkAssignModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm ${isClosingBulk ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-visible ${isClosingBulk ? 'animate-slide-out-left' : 'animate-slide-in-left'} border border-slate-100 flex flex-col max-h-[90vh]`}>
+            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0 rounded-t-2xl">
+              <h3 className="font-bold text-slate-800 text-lg">Bulk Assign Leads</h3>
+              <button onClick={handleCloseBulkAssignModal} className="text-slate-400 hover:text-slate-700 p-1.5 hover:bg-slate-200 rounded-full transition-colors">
                 ✕
               </button>
             </div>
-            <div className="p-5">
-              <div className="mb-4 text-sm text-slate-600">
-                You are about to assign <strong className="text-blue-600">{selectedLeads.length}</strong> selected lead(s) to a new owner.
+            <div className="p-6 overflow-visible min-h-0 flex-1 flex flex-col">
+              <div className="mb-6 text-base text-slate-600">
+                You are about to assign <strong className="text-blue-600 text-lg">{selectedLeads.length}</strong> selected lead(s) to a new owner.
               </div>
-              <CustomSelect 
-                label="Assign To"
-                placeholder="Select Owner..."
-                value={bulkAssignTarget}
-                onChange={setBulkAssignTarget}
-                options={users.map(u => ({ value: u.id, label: u.name }))}
-              />
+              
+              {/* Assignment Mode Selection */}
+              {user?.role !== 'BRANCH_MANAGER' && (
+                <div className="flex gap-4 mb-6">
+                  <label className={`flex-1 flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${assignMode === 'BRANCH' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}>
+                    <input 
+                      type="radio" 
+                      name="assignMode" 
+                      checked={assignMode === 'BRANCH'} 
+                      onChange={() => setAssignMode('BRANCH')}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <div>
+                      <div className="font-bold text-slate-800 text-sm">Assign to Branch</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Leads will be added to the branch unassigned pool</div>
+                    </div>
+                  </label>
+                  
+                  <label className={`flex-1 flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${assignMode === 'EXECUTIVE' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}>
+                    <input 
+                      type="radio" 
+                      name="assignMode" 
+                      checked={assignMode === 'EXECUTIVE'} 
+                      onChange={() => setAssignMode('EXECUTIVE')}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <div>
+                      <div className="font-bold text-slate-800 text-sm">Assign to Sales Executive</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Assign leads directly to a specific person</div>
+                    </div>
+                  </label>
+                </div>
+              )}
+              
+              <div className={`grid ${assignMode === 'EXECUTIVE' && user?.role !== 'BRANCH_MANAGER' ? 'grid-cols-2' : 'grid-cols-1'} gap-4 mb-4`}>
+                {user?.role !== 'BRANCH_MANAGER' && (
+                  <CustomSelect 
+                    label="Select Branch"
+                    placeholder="Choose a branch..."
+                    value={bulkAssignBranch}
+                    onChange={(val) => {
+                      setBulkAssignBranch(val);
+                      setBulkAssignTarget("");
+                    }}
+                    options={branches.map(b => ({ value: b.id.toString(), label: b.name }))}
+                  />
+                )}
+                
+                {assignMode === 'EXECUTIVE' && (
+                  <div className="relative flex flex-col justify-end">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                      Search Executive
+                    </label>
+                    <div className="relative">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={bulkAssignSearch}
+                        onChange={(e) => setBulkAssignSearch(e.target.value)}
+                        placeholder="Search name or email..."
+                        className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm bg-slate-50 focus:bg-white transition-all"
+                        disabled={!bulkAssignBranch}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {assignMode === 'EXECUTIVE' && (
+                bulkAssignBranch ? (
+                  <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
+                    <div className="overflow-y-auto bg-white flex-1 min-h-0">
+                      <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="uppercase tracking-wider border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 sticky top-0 z-10">
+                          <tr>
+                            <th className="px-4 py-3 w-12 text-center">Select</th>
+                            <th className="px-4 py-3">Executive Name</th>
+                            <th className="px-4 py-3">Email</th>
+                            <th className="px-4 py-3">Role</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {users
+                            .filter(u => u.branchId?.toString() === bulkAssignBranch)
+                            .filter(u => {
+                              if (!bulkAssignSearch) return true;
+                              const s = bulkAssignSearch.toLowerCase();
+                              return u.name.toLowerCase().includes(s) || u.email.toLowerCase().includes(s);
+                            })
+                            .map(u => (
+                            <tr 
+                              key={u.id} 
+                              className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${bulkAssignTarget === u.id.toString() ? 'bg-blue-50' : ''}`}
+                              onClick={() => setBulkAssignTarget(u.id.toString())}
+                            >
+                              <td className="px-4 py-3 text-center">
+                                <input 
+                                  type="radio" 
+                                  name="bulkAssignUser"
+                                  checked={bulkAssignTarget === u.id.toString()} 
+                                  onChange={() => setBulkAssignTarget(u.id.toString())}
+                                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                              </td>
+                              <td className="px-4 py-3 font-medium text-slate-800">
+                                {u.name}
+                              </td>
+                              <td className="px-4 py-3 text-slate-500">
+                                {u.email}
+                              </td>
+                              <td className="px-4 py-3 text-slate-500">
+                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                                  {u.role.replace('_', ' ')}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                          {users.filter(u => u.branchId?.toString() === bulkAssignBranch).length === 0 && (
+                            <tr>
+                              <td colSpan="4" className="px-4 py-8 text-center text-slate-500">
+                                No sales executives found for this branch.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 border border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-slate-500 bg-slate-50/50 flex-1">
+                    <Briefcase size={32} className="mb-3 text-slate-400" />
+                    <p className="text-sm font-medium">Select a branch to view executives</p>
+                  </div>
+                )
+              )}
             </div>
-            <div className="px-5 py-3 border-t border-slate-100 flex justify-end gap-2.5 bg-slate-50">
-              <button onClick={() => setIsBulkAssignModalOpen(false)} className="px-4 py-1.5 text-xs text-slate-600 font-bold hover:bg-slate-200 rounded-lg transition-colors">
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/80 shrink-0 rounded-b-2xl">
+              <button onClick={handleCloseBulkAssignModal} className="px-5 py-2 text-sm text-slate-600 font-bold hover:bg-slate-200 rounded-lg transition-colors">
                 Cancel
               </button>
               <button 
                 onClick={handleBulkAssignSubmit} 
-                disabled={isBulkAssigning || !bulkAssignTarget}
-                className={`px-4 py-1.5 text-white text-xs font-bold rounded-lg transition-colors shadow-sm ${isBulkAssigning || !bulkAssignTarget ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                disabled={isBulkAssigning || !bulkAssignBranch || (assignMode === 'EXECUTIVE' && !bulkAssignTarget)}
+                className={`px-5 py-2 text-white text-sm font-bold rounded-lg transition-colors shadow-md ${isBulkAssigning || !bulkAssignBranch || (assignMode === 'EXECUTIVE' && !bulkAssignTarget) ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'}`}
               >
-                {isBulkAssigning ? 'Assigning...' : 'Assign Leads'}
+                {isBulkAssigning ? 'Assigning...' : `Assign ${selectedLeads.length} Leads`}
               </button>
             </div>
           </div>
         </div>,
         document.body
       )}
+      {/* View Details Modal */}
+      {isViewDetailsOpen && activeViewLead && createPortal(
+        <div className={`fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm ${isClosingViewDetails ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col ${isClosingViewDetails ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0 rounded-t-xl">
+              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Eye size={16} className="text-indigo-500"/> Lead Details</h3>
+              <button onClick={handleCloseViewDetails} className="text-slate-400 hover:text-slate-700 p-1.5 hover:bg-slate-200 rounded-full transition-colors">&times;</button>
+            </div>
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-[10px] text-slate-500 uppercase font-bold">Name</label><div className="text-sm text-slate-800">{activeViewLead.name}</div></div>
+                <div><label className="text-[10px] text-slate-500 uppercase font-bold">Phone</label><div className="text-sm text-slate-800">{activeViewLead.phone}</div></div>
+                <div><label className="text-[10px] text-slate-500 uppercase font-bold">Email</label><div className="text-sm text-slate-800">{activeViewLead.email || 'N/A'}</div></div>
+                <div><label className="text-[10px] text-slate-500 uppercase font-bold">Destination</label><div className="text-sm text-slate-800">{activeViewLead.destination || 'N/A'}</div></div>
+                <div><label className="text-[10px] text-slate-500 uppercase font-bold">Travel Date</label><div className="text-sm text-slate-800">{activeViewLead.travelDate ? new Date(activeViewLead.travelDate).toLocaleDateString('en-GB') : 'N/A'}</div></div>
+                <div><label className="text-[10px] text-slate-500 uppercase font-bold">Pax</label><div className="text-sm text-slate-800">{activeViewLead.pax || 'N/A'}</div></div>
+                <div><label className="text-[10px] text-slate-500 uppercase font-bold">Status</label><div className="text-sm text-slate-800">{activeViewLead.status}</div></div>
+                <div><label className="text-[10px] text-slate-500 uppercase font-bold">Source</label><div className="text-sm text-slate-800">{activeViewLead.source}</div></div>
+                {activeViewLead.notes && activeViewLead.notes.length > 0 && (
+                  <div className="col-span-2 mt-2">
+                    <label className="text-[10px] text-slate-500 uppercase font-bold">Latest Note</label>
+                    <div className="text-sm text-slate-800 italic bg-slate-50 p-2 rounded border border-slate-100">{activeViewLead.notes[activeViewLead.notes.length - 1].content}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-slate-100 flex justify-end shrink-0 bg-white rounded-b-xl">
+              <button onClick={handleCloseViewDetails} className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors">Close</button>
+            </div>
+          </div>
+        </div>, document.body
+      )}
+
+      {/* Comments Modal */}
+      {isCommentsOpen && activeCommentsLead && createPortal(
+        <div className={`fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm ${isClosingComments ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col ${isClosingComments ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0 rounded-t-xl">
+              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><MessageSquare size={16} className="text-purple-500"/> Comments & Notes</h3>
+              <button onClick={handleCloseComments} className="text-slate-400 hover:text-slate-700 p-1.5 hover:bg-slate-200 rounded-full transition-colors">&times;</button>
+            </div>
+            <div className="p-5 overflow-y-auto space-y-4 flex-1 bg-slate-50">
+              {(!activeCommentsLead.notes || activeCommentsLead.notes.length === 0) ? (
+                <div className="text-center text-slate-500 text-sm py-4">No comments yet.</div>
+              ) : (
+                <div className="space-y-3">
+                  {activeCommentsLead.notes.map((note, idx) => (
+                    <div key={idx} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                      <div className="text-xs text-slate-500 mb-1 font-medium">{new Date(note.createdAt).toLocaleString('en-GB')}</div>
+                      <div className="text-sm text-slate-800 whitespace-pre-wrap">{note.content}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-white shrink-0 rounded-b-xl">
+              <form onSubmit={handleAddComment} className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Type your comment here..."
+                  className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <button type="submit" disabled={!newComment.trim()} className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">Add</button>
+              </form>
+            </div>
+          </div>
+        </div>, document.body
+      )}
+
     </div>
   );
 };

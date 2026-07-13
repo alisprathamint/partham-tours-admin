@@ -8,6 +8,15 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
   const [packages, setPackages] = useState([]);
   const [selectedPkg, setSelectedPkg] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 280);
+  };
   
   // Customization Form State
   const [formData, setFormData] = useState({
@@ -123,8 +132,8 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
   // PRESERVED ORIGINAL CODE (Currently Unreachable)
   // ==========================================
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm print:hidden">
-      <div className="bg-slate-50 w-full h-full md:w-[85vw] md:max-w-5xl md:h-[80vh] md:max-h-[750px] md:rounded-2xl shadow-2xl flex flex-col overflow-hidden relative border border-slate-300">
+    <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm print:hidden ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+      <div className={`bg-slate-50 w-full h-full md:w-[85vw] md:max-w-5xl md:h-[80vh] md:max-h-[750px] md:rounded-2xl shadow-2xl flex flex-col overflow-hidden relative border border-slate-300 ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
         
         {/* Modal Header */}
         <div className="px-5 py-3 bg-white border-b border-slate-200 flex justify-between items-center z-10 flex-shrink-0">
@@ -138,7 +147,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
             </div>
           </div>
           <button 
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
           >
             <X size={20} />
