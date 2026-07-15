@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminLayout from './components/layout/AdminLayout';
 import GeneralContent from './pages/CMS/GeneralContent';
@@ -12,35 +13,44 @@ import LeadsList from './pages/Leads/LeadsList';
 import LeadsPool from './pages/CRM/LeadsPool';
 import QueriesPipeline from './pages/CRM/QueriesPipeline';
 import TeamPipeline from './pages/CRM/TeamPipeline';
+import ConfirmedQueries from './pages/CRM/ConfirmedQueries';
 import Dashboard from './pages/Dashboard/Dashboard';
+import TeamManager from './pages/Team/TeamManager';
+import BranchManager from './pages/Branches/BranchManager';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { WebSocketProvider, useWebSocket } from './context/WebSocketContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { token, user, isLoading } = useAuth();
-  
   if (isLoading) return <div className="h-screen flex items-center justify-center">Loading...</div>;
   if (!token) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(user?.role)) return <Navigate to="/" replace />;
-  
   return children;
 };
 
-// The Dashboard is now imported from './pages/Dashboard/Dashboard'
+// Listens for server-pushed 'logout' events via WebSocket and logs the user out
+const WsLogoutListener = ({ logout }) => {
+  const { subscribe } = useWebSocket();
+  useEffect(() => {
+    const unsub = subscribe('logout', () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    });
+    return unsub;
+  }, [subscribe, logout]);
+  return null;
+};
 
-import TeamManager from './pages/Team/TeamManager';
-import BranchManager from './pages/Branches/BranchManager';
-
-const ComingSoon = ({ title }) => (
-  <div className="p-8 bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col items-center justify-center min-h-[400px]">
-    <h2 className="text-3xl font-bold text-slate-800 mb-2">{title}</h2>
-    <p className="text-slate-500 text-lg">This module is under development and will be available soon.</p>
-  </div>
-);
-
-function App() {
+// Inner component that reads token from AuthContext and opens the WS connection
+const AppRoutes = () => {
+  const { token, logout } = useAuth();
   return (
-    <AuthProvider>
+    <WebSocketProvider token={token}>
+      <WsLogoutListener logout={logout} />
       <Routes>
         <Route path="/login" element={<Login />} />
         
@@ -56,6 +66,7 @@ function App() {
           <Route path="crm/leads" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><LeadsPool /></ProtectedRoute>} />
           <Route path="crm/queries" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><QueriesPipeline /></ProtectedRoute>} />
           <Route path="crm/team-pipeline" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER']}><TeamPipeline /></ProtectedRoute>} />
+          <Route path="crm/confirmed-queries" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER']}><ConfirmedQueries /></ProtectedRoute>} />
           
           {/* Admin Only Routes */}
           <Route path="cms/general" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}><GeneralContent /></ProtectedRoute>} />
@@ -74,6 +85,16 @@ function App() {
           <Route path="users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER']}><TeamManager /></ProtectedRoute>} />
         </Route>
       </Routes>
+    </WebSocketProvider>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <NotificationProvider>
+        <AppRoutes />
+      </NotificationProvider>
     </AuthProvider>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Plus, Search, MoreVertical, Edit2, Key, UserX, Users, Shield, Briefcase, Building, Mail, X, Filter, ChevronDown, CheckCircle, Clock } from 'lucide-react';
+import api from '../../api/axios';
 
 // Mock Data for UI presentation until Backend is linked
 const MOCK_USERS = [
@@ -42,9 +43,9 @@ const CustomSelect = ({ label, options, value, onChange, placeholder = "Select..
           onClick={() => setIsOpen(!isOpen)}
           className={`w-full min-w-[140px] px-3 py-2 bg-white border ${isOpen ? 'border-blue-500 ring-2 ring-blue-500' : 'border-slate-300'} rounded-md text-sm text-slate-900 font-medium cursor-pointer flex justify-between items-center shadow-sm transition-shadow`}
         >
-          <span className={value && value !== 'ALL' ? 'text-slate-900' : 'text-slate-500'}>{selectedOption && value !== 'ALL' ? selectedOption.label : placeholder}</span>
-          <div className={`text-slate-500 transition-transform duration-300 ml-2 ${isOpen ? '-rotate-180' : ''}`}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <span className={value && value !== 'ALL' ? 'text-slate-900' : 'text-slate-700'}>{selectedOption && value !== 'ALL' ? selectedOption.label : placeholder}</span>
+          <div className={`text-slate-700 transition-transform duration-300 ${isOpen ? '-rotate-180' : ''}`}>
+            <ChevronDown size={16} />
           </div>
         </div>
         
@@ -80,10 +81,8 @@ const TeamManager = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const res = await api.get('/users');
+      const data = res.data;
       if (data.success) {
         setUsers(data.data.map(u => ({
           id: u.id,
@@ -103,10 +102,8 @@ const TeamManager = () => {
 
   const fetchBranches = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/branches', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const res = await api.get('/branches');
+      const data = res.data;
       if (data.success) {
         setBranches(data.data);
       }
@@ -238,12 +235,8 @@ const TeamManager = () => {
     if (!userToToggle) return;
     try {
       const newStatus = userToToggle.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-      const res = await fetch(`http://127.0.0.1:5000/api/users/${userId}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (res.ok) {
+      const res = await api.put(`/users/${userId}`, { status: newStatus });
+      if (res.status === 200 || res.status === 201) {
         fetchUsers();
       }
     } catch (err) {
@@ -254,11 +247,8 @@ const TeamManager = () => {
   const handleDeleteUser = async (userId) => {
     if (confirm("Are you sure you want to delete this user?")) {
       try {
-        const res = await fetch(`http://127.0.0.1:5000/api/users/${userId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
+        const res = await api.delete(`/users/${userId}`);
+        const data = res.data;
         if (data.success) {
           fetchUsers();
         } else {
@@ -296,24 +286,14 @@ const TeamManager = () => {
         payload.password = formData.password;
       }
 
-      let url = 'http://127.0.0.1:5000/api/register';
-      let method = 'POST';
-
+      let res;
       if (isEditing) {
-        url = `http://127.0.0.1:5000/api/users/${editingUserId}`;
-        method = 'PUT';
+        res = await api.put(`/users/${editingUserId}`, payload);
+      } else {
+        res = await api.post('/register', payload);
       }
-
-      const res = await fetch(url, {
-        method,
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify(payload)
-      });
       
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
         fetchUsers();
         handleCloseModal();
@@ -333,7 +313,7 @@ const TeamManager = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Team & Users</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage your staff, assign roles, and control access to the CRM.</p>
+          <p className="text-sm text-slate-700 mt-1">Manage your staff, assign roles, and control access to the CRM.</p>
         </div>
         <button 
           onClick={handleOpenAddModal}
@@ -387,13 +367,13 @@ const TeamManager = () => {
            <div>
              <label className="block text-xs font-bold text-slate-700 mb-1.5">Search Staff</label>
              <div className="relative">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-800" size={16} />
                <input 
                  type="text" 
                  placeholder="Search by name or email..." 
                  value={searchTerm}
                  onChange={(e) => setSearchTerm(e.target.value)}
-                 className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow shadow-sm"
+                 className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 font-medium placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow shadow-sm"
                />
              </div>
            </div>
@@ -401,69 +381,71 @@ const TeamManager = () => {
       </div>
 
       {/* Users Data Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-4">User Info</th>
-                <th className="px-6 py-4">Role & Access</th>
-                <th className="px-6 py-4">Branch</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Joined</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+      <div className="bg-white rounded-2xl border border-slate-200 relative mb-6 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto overflow-y-hidden">
+          <table className="w-full text-left border-collapse min-w-[1000px]">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-700 font-medium text-[13px] bg-slate-50/50">
+                <th className="px-5 py-4 font-normal">User Info</th>
+                <th className="px-5 py-4 font-normal">Role & Access</th>
+                <th className="px-5 py-4 font-normal">Branch</th>
+                <th className="px-5 py-4 font-normal">Status</th>
+                <th className="px-5 py-4 font-normal">Joined</th>
+                <th className="px-5 py-4 text-center font-normal w-28">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="bg-white">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-10 text-center text-slate-500">
-                    <div className="flex flex-col items-center justify-center">
-                      <Users size={32} className="text-slate-300 mb-3" />
-                      <p className="text-sm font-medium">No users found.</p>
-                      <p className="text-xs text-slate-400">Try adjusting your search query.</p>
+                  <td colSpan="6" className="p-12 text-center text-slate-700 font-medium">
+                    <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 text-slate-800 border border-slate-100">
+                       <Users size={32} />
                     </div>
+                    <div className="text-slate-800 font-bold text-lg mb-2">No users found</div>
+                    <div className="text-slate-700 text-sm">Try adjusting your search query.</div>
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
+                filteredUsers.map((u, index) => {
+                  const isLast = index === filteredUsers.length - 1;
+                  return (
+                  <tr key={u.id} className={`align-middle border-b border-slate-100 transition-colors hover:bg-slate-50/50 ${isLast ? 'border-b-0' : ''}`}>
+                    <td className="px-5 py-4 align-middle">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0 border border-blue-200">
                           {u.name.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <div className="font-bold text-slate-800">{u.name}</div>
-                          <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                          <div className="text-xs text-slate-700 flex items-center gap-1 mt-0.5">
                             <Mail size={10} /> {u.email}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-4 align-middle">
                       {getRoleBadge(u.role)}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-slate-600 text-xs font-medium">
-                        <Building size={14} className="text-slate-400" />
+                    <td className="px-5 py-4 align-middle">
+                      <div className="flex items-center gap-1.5 text-slate-800 text-xs font-medium">
+                        <Building size={14} className="text-slate-800" />
                         {u.branch}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-4 align-middle">
                       {getStatusBadge(u.status)}
                     </td>
-                    <td className="px-6 py-4 text-slate-500 text-xs font-medium">
+                    <td className="px-5 py-4 text-slate-700 text-xs font-medium align-middle">
                       {u.joined}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-5 py-4 text-center align-middle">
                       <div className="relative inline-block text-left">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenDropdownId(openDropdownId === `row-${u.id}` ? null : `row-${u.id}`);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" 
+                          className="p-1.5 text-slate-800 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors" 
                         >
                           <MoreVertical size={18} />
                         </button>
@@ -506,7 +488,8 @@ const TeamManager = () => {
                       </div>
                     </td>
                   </tr>
-                ))
+                );
+              })
               )}
             </tbody>
           </table>
@@ -521,11 +504,11 @@ const TeamManager = () => {
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-slate-800">{isEditing ? 'Edit Member' : 'Add New Member'}</h3>
-                <p className="text-xs text-slate-500 mt-0.5">{isEditing ? 'Update account details.' : 'Create a new account for your staff.'}</p>
+                <p className="text-xs text-slate-700 mt-0.5">{isEditing ? 'Update account details.' : 'Create a new account for your staff.'}</p>
               </div>
               <button 
                 onClick={handleCloseModal}
-                className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                className="text-slate-800 hover:text-slate-800 p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X size={20} />
               </button>
@@ -565,7 +548,7 @@ const TeamManager = () => {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
                       placeholder="Enter a secure password..."
                     />
-                    <p className="text-[10px] text-slate-500">The user can change this password later after logging in.</p>
+                    <p className="text-[10px] text-slate-700">The user can change this password later after logging in.</p>
                   </div>
                 )}
 
@@ -598,7 +581,7 @@ const TeamManager = () => {
                                 {formData.role === role.value && <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>}
                               </div>
                             </div>
-                            <p className={`text-[10px] leading-snug ${formData.role === role.value ? 'text-blue-600/80' : 'text-slate-500'}`}>
+                            <p className={`text-[10px] leading-snug ${formData.role === role.value ? 'text-blue-600/80' : 'text-slate-700'}`}>
                               {role.desc}
                             </p>
                           </div>

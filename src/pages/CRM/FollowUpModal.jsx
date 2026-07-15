@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Calendar, Clock, Bell, User, Phone, CheckCircle2 } from 'lucide-react';
+import api from '../../api/axios';
 
-const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
+const FollowUpModal = ({ isOpen, onClose, lead, user, onFollowUpSaved }) => {
   const [isClosing, setIsClosing] = useState(false);
 
   const handleClose = () => {
@@ -44,15 +45,8 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:5000/api/users', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!res.ok) {
-          throw new Error('Failed to fetch users');
-        }
-
-        const data = await res.json();
+        const res = await api.get('/users');
+        const data = res.data;
         if (data.success) {
           setUsers(data.data || []);
         }
@@ -60,8 +54,8 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
         console.error('FollowUpModal fetch users error:', err);
       }
     };
-    if (token) fetchUsers();
-  }, [token]);
+    if (user && isOpen) fetchUsers();
+  }, [user, isOpen]);
 
   if (!isOpen || !lead) return null;
 
@@ -81,15 +75,8 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://127.0.0.1:5000/api/crm/leads/${lead.id}/follow-up`, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-      const data = await res.json();
+      const res = await api.post(`/crm/leads/${lead.id}/follow-up`, formData);
+      const data = res.data;
       if (data.success) {
         onFollowUpSaved();
         onClose();
@@ -113,7 +100,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
           className={`px-3 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
             value === opt 
               ? 'bg-white text-blue-600 shadow-sm' 
-              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+              : 'text-slate-700 hover:text-slate-700 hover:bg-slate-200/50'
           }`}
         >
           {opt}
@@ -134,7 +121,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
               Log Follow-Up
             </h2>
           </div>
-          <button onClick={handleClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200 p-1 rounded-full transition-colors cursor-pointer">
+          <button onClick={handleClose} className="text-slate-800 hover:text-slate-700 hover:bg-slate-200 p-1 rounded-full transition-colors cursor-pointer">
             <X size={16} />
           </button>
         </div>
@@ -165,9 +152,9 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
               <h3 className="text-[10px] font-semibold text-slate-800 mb-2 uppercase tracking-wide border-b border-slate-100 pb-1">Interaction Details</h3>
               <div className="flex flex-wrap gap-x-6 gap-y-3">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-medium text-slate-500 uppercase tracking-wider">Type</label>
+                  <label className="text-[9px] font-medium text-slate-700 uppercase tracking-wider">Type</label>
                   <SegmentedControl 
-                    options={['Call', 'To Do']} 
+                    options={['Call', 'WhatsApp']} 
                     value={formData.activityType} 
                     onChange={val => setFormData({...formData, activityType: val})} 
                   />
@@ -175,7 +162,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
 
                 {formData.activityType === 'Call' && (
                   <div className="space-y-1">
-                    <label className="text-[9px] font-medium text-slate-500 uppercase tracking-wider">Direction</label>
+                    <label className="text-[9px] font-medium text-slate-700 uppercase tracking-wider">Direction</label>
                     <SegmentedControl 
                       options={['Outgoing', 'Incoming']} 
                       value={formData.callDirection} 
@@ -184,25 +171,27 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
                   </div>
                 )}
 
-                <div className="space-y-1 w-full">
-                  <label className="text-[9px] font-medium text-slate-500 uppercase tracking-wider">Outcome</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['Answered', 'Unanswered', 'Not Reachable'].map(opt => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setFormData({...formData, outcome: opt})}
-                        className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                          formData.outcome === opt 
-                            ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' 
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
+                {formData.activityType === 'Call' && (
+                  <div className="space-y-1 w-full">
+                    <label className="text-[9px] font-medium text-slate-700 uppercase tracking-wider">Outcome</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Answered', 'Unanswered', 'Not Reachable'].map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setFormData({...formData, outcome: opt})}
+                          className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                            formData.outcome === opt 
+                              ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' 
+                              : 'bg-white border-slate-200 text-slate-800 hover:border-blue-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -212,9 +201,12 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
               <div className="space-y-3">
                 
                 <div className="space-y-1">
-                  <label className="text-[9px] font-medium text-slate-500 uppercase tracking-wider">Action Required</label>
+                  <label className="text-[9px] font-medium text-slate-700 uppercase tracking-wider">Action Required</label>
                   <div className="flex flex-wrap gap-1.5">
-                    {['Call Back', 'To Do', 'Meeting', 'Create Query', 'Send Quotation', 'Lost'].map(opt => (
+                    {(lead?.type === 'QUERY' ? 
+                      ['Call Back', 'WhatsApp', 'Meeting', 'Deal Lost'] : 
+                      ['Call Back', 'WhatsApp', 'Meeting', 'Create Query', 'Lost']
+                    ).map(opt => (
                       <button
                         key={opt}
                         type="button"
@@ -222,7 +214,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
                         className={`px-2.5 py-1 text-xs rounded border transition-colors ${
                           formData.nextAction === opt 
                             ? 'bg-slate-800 border-slate-800 text-white font-medium shadow-sm' 
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                            : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
                         {opt}
@@ -231,10 +223,10 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
                   </div>
                 </div>
 
-                {formData.nextAction !== 'Create Query' && formData.nextAction !== 'Lost' && (
+                {formData.nextAction !== 'Create Query' && formData.nextAction !== 'Lost' && formData.nextAction !== 'Deal Lost' && (
                   <div className="bg-slate-50/80 p-2.5 rounded-lg border border-slate-200 space-y-2">
                     <div className="space-y-1">
-                      <label className="text-[9px] font-medium text-slate-500 uppercase tracking-wider">Schedule For</label>
+                      <label className="text-[9px] font-medium text-slate-700 uppercase tracking-wider">Schedule For</label>
                       <div className="flex flex-wrap gap-1.5">
                         {['Today', 'Tomorrow', 'In 2 days', 'In 3 days', 'Custom'].map(opt => (
                           <button
@@ -244,7 +236,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
                             className={`px-2.5 py-0.5 text-xs rounded-full transition-colors border ${
                               formData.datePreset === opt 
                                 ? 'bg-blue-600 border-blue-600 text-white shadow-sm font-medium' 
-                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                                : 'bg-white border-slate-200 text-slate-800 hover:bg-slate-100'
                             }`}
                           >
                             {opt}
@@ -256,7 +248,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
                     <div className="flex flex-wrap gap-2.5 items-end pt-1">
                       {formData.datePreset === 'Custom' && (
                         <div className="w-28">
-                          <label className="block text-[9px] font-medium text-slate-500 uppercase mb-0.5 flex items-center gap-1"><Calendar size={10}/> Date</label>
+                          <label className="block text-[9px] font-medium text-slate-700 uppercase mb-0.5 flex items-center gap-1"><Calendar size={10}/> Date</label>
                           <input 
                             type="date" 
                             value={formData.followUpDate}
@@ -266,7 +258,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
                         </div>
                       )}
                       <div className="w-24">
-                        <label className="block text-[9px] font-medium text-slate-500 uppercase mb-0.5 flex items-center gap-1"><Clock size={10}/> Time</label>
+                        <label className="block text-[9px] font-medium text-slate-700 uppercase mb-0.5 flex items-center gap-1"><Clock size={10}/> Time</label>
                         <input 
                           type="time" 
                           value={formData.followUpTime}
@@ -275,7 +267,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
                         />
                       </div>
                       <div className="w-36">
-                        <label className="block text-[9px] font-medium text-slate-500 uppercase mb-0.5 flex items-center gap-1"><Bell size={10}/> Reminder</label>
+                        <label className="block text-[9px] font-medium text-slate-700 uppercase mb-0.5 flex items-center gap-1"><Bell size={10}/> Reminder</label>
                         <div className="flex items-center">
                           <input 
                             type="number" 
@@ -283,7 +275,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
                             onChange={(e) => setFormData({...formData, reminderMinutes: e.target.value})}
                             className="w-10 border border-slate-300 rounded-l px-1 py-1 text-xs focus:outline-none focus:border-blue-500 text-center bg-white"
                           />
-                          <div className="bg-slate-100 border-y border-r border-slate-300 rounded-r px-1.5 py-1 text-xs text-slate-600 font-medium">
+                          <div className="bg-slate-100 border-y border-r border-slate-300 rounded-r px-1.5 py-1 text-xs text-slate-800 font-medium">
                             mins before
                           </div>
                         </div>
@@ -310,7 +302,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
                 
                 <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50/80 px-2.5 py-2 rounded border border-slate-200">
                   <div className="flex items-center gap-2">
-                    <label className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide">Assign To:</label>
+                    <label className="text-[10px] font-semibold text-slate-800 uppercase tracking-wide">Assign To:</label>
                     <select 
                       value={formData.assignedToId}
                       onChange={(e) => setFormData({...formData, assignedToId: e.target.value})}
@@ -344,7 +336,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, token, onFollowUpSaved }) => {
           <button 
             type="button" 
             onClick={handleClose} 
-            className="px-3 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            className="px-3 py-1 text-xs font-medium text-slate-800 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >
             Cancel
           </button>

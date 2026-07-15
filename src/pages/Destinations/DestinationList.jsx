@@ -2,22 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axios';
+import { getImageUrl } from '../../utils/imageHelper';
 
 const DestinationList = () => {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [destinations, setDestinations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return `http://127.0.0.1:5000${path.startsWith('/') ? '' : '/'}${path}`;
-  };
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/destinations')
-      .then(res => res.json())
+    api.get('/destinations')
+      .then(res => res.data)
       .then(data => {
         if (data.success) {
           setDestinations(data.data.destinations);
@@ -33,13 +30,8 @@ const DestinationList = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this destination?")) {
       try {
-        const res = await fetch(`http://127.0.0.1:5000/api/destinations/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const data = await res.json();
+        const res = await api.delete(`/destinations/${id}`);
+        const data = res.data;
         if (data.success) {
           setDestinations(prev => prev.filter(d => d.id !== id));
         } else {
@@ -57,7 +49,7 @@ const DestinationList = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Destinations</h2>
-          <p className="text-sm text-slate-500 mt-1">Manage travel destinations and their details.</p>
+          <p className="text-sm text-slate-700 mt-1">Manage travel destinations and their details.</p>
         </div>
         <button 
           onClick={() => navigate('/destinations/new')}
@@ -76,15 +68,15 @@ const DestinationList = () => {
             placeholder="Search destinations..."
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
           />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-800" size={18} />
         </div>
       </div>
 
       {/* Grid */}
       {isLoading ? (
-        <div className="p-12 text-center text-slate-500">Loading destinations...</div>
+        <div className="p-12 text-center text-slate-700">Loading destinations...</div>
       ) : destinations.length === 0 ? (
-        <div className="p-12 text-center text-slate-500 bg-white rounded-xl border border-dashed border-slate-300">
+        <div className="p-12 text-center text-slate-700 bg-white rounded-xl border border-dashed border-slate-300">
           No destinations found. Create your first destination!
         </div>
       ) : (
@@ -103,7 +95,7 @@ const DestinationList = () => {
                     className="w-full h-full object-cover" 
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-100">
+                  <div className="w-full h-full flex items-center justify-center text-slate-800 bg-slate-100">
                     No Image
                   </div>
                 )}
@@ -125,7 +117,7 @@ const DestinationList = () => {
               <div className="p-4 flex flex-col flex-grow justify-between">
                 <div>
                   <h3 className="font-bold text-slate-800 text-lg mb-1">{dest.name}</h3>
-                  <p className="text-sm text-slate-500 line-clamp-2">
+                  <p className="text-sm text-slate-700 line-clamp-2">
                     {dest.description || 'No description provided.'}
                   </p>
                 </div>

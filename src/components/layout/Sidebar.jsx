@@ -26,7 +26,8 @@ const Sidebar = ({ isOpen }) => {
       subItems: [
         { title: 'Leads Pool', path: '/crm/leads' },
         { title: 'My Queries', path: '/crm/queries' },
-        { title: 'Team Pipeline', path: '/crm/team-pipeline', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] }
+        { title: 'Team Pipeline', path: '/crm/team-pipeline', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] },
+        { title: 'Confirmed Queries', path: '/crm/confirmed-queries', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] }
       ]
     },
     {
@@ -60,28 +61,8 @@ const Sidebar = ({ isOpen }) => {
     },
   ], []);
 
-  // BACKGROUND RENDERING - Page load hotay hi sidebar render ho jaye
   useEffect(() => {
-    // Step 1: Page load ke turant baad sidebar ko expanded karo
-    const timer1 = setTimeout(() => {
-      setPreRender(true);
-    }, 50); // 50ms delay for page load
-
-    // Step 2: 100ms baad sidebar ko wapas collapse karo
-    const timer2 = setTimeout(() => {
-      setPreRender(false);
-    }, 150); // 150ms mein expand-collapse ho jayega
-
-    // Step 3: Sab kuch ready mark karo
-    const timer3 = setTimeout(() => {
-      setIsReady(true);
-    }, 200);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-    };
+    setIsReady(true);
   }, []);
 
   // Auto-expand modules
@@ -162,31 +143,17 @@ const Sidebar = ({ isOpen }) => {
         /* Main sidebar transition */
         .sidebar-main {
           transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-          will-change: width !important;
-          backface-visibility: hidden !important;
-          -webkit-backface-visibility: hidden !important;
-          transform: translate3d(0, 0, 0) !important;
-          -webkit-transform: translate3d(0, 0, 0) !important;
         }
         
-        /* All children should use GPU */
-        .sidebar-main * {
-          backface-visibility: hidden !important;
-          -webkit-backface-visibility: hidden !important;
-          transform: translate3d(0, 0, 0) !important;
-          -webkit-transform: translate3d(0, 0, 0) !important;
-        }
-        
+
         /* Text transitions */
         .sidebar-text {
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-          will-change: opacity, max-width, margin !important;
         }
         
         /* Submenu transitions */
         .sidebar-submenu {
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-          will-change: max-height, opacity, margin !important;
         }
         
         /* Scrollbar styling */
@@ -207,14 +174,7 @@ const Sidebar = ({ isOpen }) => {
           background: #94a3b8;
         }
         
-        /* Force GPU rendering for all menu items */
-        .menu-item-gpu {
-          transform: translateZ(0) !important;
-          -webkit-transform: translateZ(0) !important;
-          backface-visibility: hidden !important;
-          -webkit-backface-visibility: hidden !important;
-        }
-        
+
         /* Ready state - no opacity tricks needed */
         .sidebar-ready {
           opacity: 1 !important;
@@ -233,17 +193,12 @@ const Sidebar = ({ isOpen }) => {
         `}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        style={{
-          // Ensure GPU acceleration
-          transform: 'translate3d(0, 0, 0)',
-          WebkitTransform: 'translate3d(0, 0, 0)'
-        }}
       >
         {/* Logo Section */}
         <div className="border-b border-slate-100 flex items-center h-[72px] px-6 relative overflow-hidden flex-shrink-0 menu-item-gpu">
           <div className="flex items-center w-full">
-            <span className="bg-blue-600 text-white p-1.5 rounded-lg flex-shrink-0 transition-transform duration-300 hover:scale-105">
-              <Package size={20} />
+            <span className="flex-shrink-0 transition-transform duration-300 hover:scale-105">
+              <img src="/assets/logos/P Logo.svg" alt="Pratham Tours" className="w-8 h-8 object-contain" />
             </span>
             <div className={`
               sidebar-text
@@ -275,18 +230,14 @@ const Sidebar = ({ isOpen }) => {
                         transition-colors duration-200 ease-in-out w-full relative
                         ${isActiveModule && !isModuleExpanded
                           ? 'bg-blue-50 text-blue-700'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          : 'text-slate-800 hover:bg-slate-50 hover:text-slate-900'
                         }
                         ${!isExpanded ? 'justify-center' : ''}
                       `}
-                      style={{
-                        transform: 'translateZ(0)',
-                        WebkitTransform: 'translateZ(0)'
-                      }}
                     >
                       <div className="flex items-center min-w-0 flex-1">
                         <span className={`
-                          opacity-80 flex-shrink-0 w-6 flex items-center justify-center
+                          flex-shrink-0 w-6 flex items-center justify-center
                           ${isActiveModule ? 'text-blue-600' : ''}
                         `}>
                           {item.icon}
@@ -328,7 +279,7 @@ const Sidebar = ({ isOpen }) => {
                             transition-colors duration-200 ease-in-out ml-2
                             ${isActive
                               ? 'text-blue-700 font-semibold bg-blue-50'
-                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                              : 'text-slate-700 hover:text-slate-800 hover:bg-slate-50'
                             }
                           `}
                         >
@@ -351,15 +302,11 @@ const Sidebar = ({ isOpen }) => {
                     ${!isExpanded ? 'justify-center' : ''}
                     ${isActive
                       ? 'bg-blue-50 text-blue-700'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      : 'text-slate-800 hover:bg-slate-50 hover:text-slate-900'
                     }
                   `}
-                  style={{
-                    transform: 'translateZ(0)',
-                    WebkitTransform: 'translateZ(0)'
-                  }}
                 >
-                  <span className="opacity-80 flex-shrink-0 w-6 flex items-center justify-center">
+                  <span className="flex-shrink-0 w-6 flex items-center justify-center">
                     {item.icon}
                   </span>
                   <span className={`
@@ -380,7 +327,7 @@ const Sidebar = ({ isOpen }) => {
           border-t border-slate-100 p-4 transition-all duration-300 ease-in-out flex-shrink-0
           ${isExpanded ? 'opacity-100' : 'opacity-0'}
         `}>
-          <div className="text-xs text-slate-400 text-center">
+          <div className="text-xs text-slate-800 text-center">
             {isExpanded && (
               <span className="whitespace-nowrap">v2.0.0</span>
             )}

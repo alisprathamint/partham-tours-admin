@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Image as ImageIcon, Upload, Plus, Trash2 } from 'lucide-react';
+import api from '../../api/axios';
+import { getImageUrl } from '../../utils/imageHelper';
 
 const GeneralContent = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -48,8 +50,8 @@ const GeneralContent = () => {
   const [uploadingField, setUploadingField] = useState(null);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/settings')
-      .then(res => res.json())
+    api.get('/settings')
+      .then(res => res.data)
       .then(data => {
         if (data.success && data.data) {
           setFormData(prev => ({ ...prev, ...data.data }));
@@ -109,11 +111,8 @@ const GeneralContent = () => {
 
     try {
       // In production, adjust token passing if required by backend. Assuming /api/upload is public or handled
-      const res = await fetch('http://127.0.0.1:5000/api/upload', {
-        method: 'POST',
-        body: data
-      });
-      const result = await res.json();
+      const res = await api.post('/upload', data);
+      const result = res.data;
       
       if (result.success && result.file.url) {
         if (uploadingField.arrayName) {
@@ -139,17 +138,8 @@ const GeneralContent = () => {
     setIsSaving(true);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://127.0.0.1:5000/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
+      const response = await api.post('/settings', formData);
+      const data = response.data;
       if (data.success) {
         alert('Content saved successfully to Database!');
       } else {
@@ -164,7 +154,7 @@ const GeneralContent = () => {
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center text-slate-500">Loading settings...</div>;
+    return <div className="p-8 text-center text-slate-700">Loading settings...</div>;
   }
 
   const heroSlides = parseJsonSafe(formData.heroSlides);
@@ -181,7 +171,7 @@ const GeneralContent = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Website Content Management</h2>
-          <p className="text-sm text-slate-500 mt-1">Manage texts and images for your main website pages.</p>
+          <p className="text-sm text-slate-700 mt-1">Manage texts and images for your main website pages.</p>
         </div>
         <button 
           onClick={handleSave}
@@ -200,7 +190,7 @@ const GeneralContent = () => {
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'home'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                : 'border-transparent text-slate-700 hover:text-slate-700 hover:border-slate-300'
             }`}
           >
             Home Page
@@ -210,7 +200,7 @@ const GeneralContent = () => {
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'about'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                : 'border-transparent text-slate-700 hover:text-slate-700 hover:border-slate-300'
             }`}
           >
             About Us Page
@@ -220,7 +210,7 @@ const GeneralContent = () => {
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'global'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                : 'border-transparent text-slate-700 hover:text-slate-700 hover:border-slate-300'
             }`}
           >
             Global Settings
@@ -239,9 +229,9 @@ const GeneralContent = () => {
               <div className="flex items-center gap-4">
                 <div className="w-40 h-auto p-4 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center bg-slate-50">
                   {formData.mainLogo ? (
-                    <img src={formData.mainLogo.startsWith('http') ? formData.mainLogo : `http://127.0.0.1:5000${formData.mainLogo}`} alt="Logo" className="max-h-20 object-contain" />
+                    <img src={getImageUrl(formData.mainLogo)} alt="Logo" className="max-h-20 object-contain" />
                   ) : (
-                    <ImageIcon className="text-slate-400" size={32} />
+                    <ImageIcon className="text-slate-800" size={32} />
                   )}
                 </div>
                 <div className="flex-1">
@@ -251,7 +241,7 @@ const GeneralContent = () => {
                       value={formData.mainLogo} 
                       readOnly 
                       placeholder="No logo uploaded"
-                      className="flex-1 px-4 py-2 border rounded-lg bg-slate-50 text-slate-500" 
+                      className="flex-1 px-4 py-2 border rounded-lg bg-slate-50 text-slate-700" 
                     />
                     <button 
                       type="button" 
@@ -261,7 +251,7 @@ const GeneralContent = () => {
                       <Upload size={18} /> Upload Logo
                     </button>
                   </div>
-                  <p className="text-xs text-slate-500">Recommended size: 200x50 pixels. PNG or SVG format with transparent background.</p>
+                  <p className="text-xs text-slate-700">Recommended size: 200x50 pixels. PNG or SVG format with transparent background.</p>
                 </div>
               </div>
             </div>
@@ -291,7 +281,7 @@ const GeneralContent = () => {
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Slide {index + 1} Image</label>
                         <div className="flex items-center gap-2">
-                           <input type="text" value={slide.image} readOnly className="w-full px-4 py-2 border rounded-lg bg-slate-50 text-slate-500" />
+                           <input type="text" value={slide.image} readOnly className="w-full px-4 py-2 border rounded-lg bg-slate-50 text-slate-700" />
                            <button type="button" onClick={() => triggerImageUpload('image', index, 'heroSlides')} className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><Upload size={20}/></button>
                         </div>
                       </div>
@@ -413,7 +403,7 @@ const GeneralContent = () => {
                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Story Image</label>
                   <div className="flex items-center gap-2">
-                     <input type="text" value={formData.ourStoryImage} readOnly className="w-full px-4 py-2 border rounded-lg bg-slate-50 text-slate-500" />
+                     <input type="text" value={formData.ourStoryImage} readOnly className="w-full px-4 py-2 border rounded-lg bg-slate-50 text-slate-700" />
                      <button type="button" onClick={() => triggerImageUpload('ourStoryImage')} className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><Upload size={20}/></button>
                   </div>
                </div>
@@ -447,7 +437,7 @@ const GeneralContent = () => {
                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Mission Image</label>
                   <div className="flex items-center gap-2">
-                     <input type="text" value={formData.ourMissionImage} readOnly className="w-full px-4 py-2 border rounded-lg bg-slate-50 text-slate-500" />
+                     <input type="text" value={formData.ourMissionImage} readOnly className="w-full px-4 py-2 border rounded-lg bg-slate-50 text-slate-700" />
                      <button type="button" onClick={() => triggerImageUpload('ourMissionImage')} className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><Upload size={20}/></button>
                   </div>
                </div>

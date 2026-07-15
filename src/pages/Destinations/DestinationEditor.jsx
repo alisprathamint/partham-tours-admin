@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, Image as ImageIcon, Upload, X, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axios';
+import { getImageUrl } from '../../utils/imageHelper';
 
 const MONTHS = [
   { value: 1, label: 'January' }, { value: 2, label: 'February' },
@@ -15,13 +17,8 @@ const MONTHS = [
 const DestinationEditor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { user } = useAuth();
   
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return `http://127.0.0.1:5000${path.startsWith('/') ? '' : '/'}${path}`;
-  };
   
   const isEditMode = Boolean(id);
   
@@ -40,8 +37,8 @@ const DestinationEditor = () => {
   useEffect(() => {
     if (isEditMode) {
       // Fetch existing destination
-      fetch(`http://127.0.0.1:5000/api/destinations`)
-        .then(res => res.json())
+      api.get('/destinations')
+        .then(res => res.data)
         .then(data => {
           if (data.success) {
             const dest = data.data.destinations.find(d => d.id === parseInt(id));
@@ -91,11 +88,8 @@ const DestinationEditor = () => {
     uploadData.append('fieldname', 'destinationImage');
 
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/upload', {
-        method: 'POST',
-        body: uploadData
-      });
-      const result = await res.json();
+      const res = await api.post('/upload', uploadData);
+      const result = res.data;
       
       if (result.success && result.file.url) {
         setFormData(prev => ({ ...prev, image: result.file.url }));
@@ -122,22 +116,14 @@ const DestinationEditor = () => {
     }
 
     try {
-      const url = isEditMode 
-        ? `http://127.0.0.1:5000/api/destinations/${id}`
-        : `http://127.0.0.1:5000/api/destinations`;
-        
-      const method = isEditMode ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
+      let response;
+      if (isEditMode) {
+        response = await api.put(`/destinations/${id}`, formData);
+      } else {
+        response = await api.post('/destinations', formData);
+      }
       
-      const data = await response.json();
+      const data = response.data;
       if (data.success) {
         navigate('/destinations');
       } else {
@@ -152,7 +138,7 @@ const DestinationEditor = () => {
   };
 
   if (isLoading) {
-    return <div className="p-12 text-center text-slate-500">Loading...</div>;
+    return <div className="p-12 text-center text-slate-700">Loading...</div>;
   }
 
   return (
@@ -163,7 +149,7 @@ const DestinationEditor = () => {
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate('/destinations')}
-            className="p-2.5 bg-white text-slate-500 rounded-xl shadow-sm border border-slate-200 hover:text-slate-800 hover:bg-slate-50 transition-all"
+            className="p-2.5 bg-white text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:text-slate-800 hover:bg-slate-50 transition-all"
           >
             <ArrowLeft size={20} />
           </button>
@@ -171,7 +157,7 @@ const DestinationEditor = () => {
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
               {isEditMode ? 'Edit Destination' : 'New Destination'}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">Fill out the details for this destination.</p>
+            <p className="text-sm text-slate-700 mt-1">Fill out the details for this destination.</p>
           </div>
         </div>
         <button 
@@ -229,7 +215,7 @@ const DestinationEditor = () => {
                     className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all border ${
                       isSelected 
                         ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                        : 'bg-white text-slate-800 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
                     }`}
                   >
                     {month.label}
@@ -264,7 +250,7 @@ const DestinationEditor = () => {
                     </div>
                   </>
                 ) : (
-                  <div className="text-center p-6 text-slate-400">
+                  <div className="text-center p-6 text-slate-800">
                     <ImageIcon className="mx-auto mb-2 opacity-50" size={48} />
                     <p className="text-sm">No image selected</p>
                   </div>
@@ -280,13 +266,13 @@ const DestinationEditor = () => {
                   <Upload size={18} /> 
                   {formData.image ? 'Change Image' : 'Upload Image'}
                 </button>
-                <div className="text-sm text-slate-500 space-y-1.5">
+                <div className="text-sm text-slate-700 space-y-1.5">
                   <p>Recommended resolution: 800x600 pixels or higher.</p>
                   <p>Accepted formats: JPG, PNG, WEBP.</p>
                   <p>Max file size: 5MB.</p>
                 </div>
                 {formData.image && (
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-500 break-all">
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-700 break-all">
                     <span className="font-semibold text-slate-700">Current URL:</span> <br/> {formData.image}
                   </div>
                 )}

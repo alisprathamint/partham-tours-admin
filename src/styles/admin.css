@@ -76,6 +76,11 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 * {
@@ -126,16 +131,10 @@ body {
 }
 
 /* Prevent layout shifts during scroll */
-.fixed,
-.sticky {
-  will-change: transform;
-}
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: #f8fafc;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
 
@@ -154,9 +153,6 @@ body {
 
 .animate-slide-in-left {
   animation: slideInLeft 0.3s ease-out forwards;
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 @keyframes slideOutLeft {
@@ -173,9 +169,6 @@ body {
 
 .animate-slide-out-left {
   animation: slideOutLeft 0.3s ease-in forwards;
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 @keyframes fadeIn {
@@ -192,9 +185,6 @@ body {
 
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
-  will-change: opacity;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 @keyframes fadeOut {
@@ -211,9 +201,6 @@ body {
 
 .animate-fade-out {
   animation: fadeOut 0.3s ease-in forwards;
-  will-change: opacity;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 /* Performance optimization for image containers */
@@ -224,29 +211,16 @@ img {
 /* Optimize hover effects */
 .hover-lift {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  will-change: transform;
 }
 
 .hover-lift:hover {
   transform: translateY(-2px);
 }
 
-/* Prevent repaints on box-shadow changes */
-.shadow-sm,
-.shadow,
-.shadow-md,
-.shadow-lg,
-.shadow-xl {
-  will-change: transform;
-}
-
-
-
 /* Optimize transitions */
 .transition-all {
   transition-property: transform, opacity, background-color, border-color, box-shadow;
   transition-duration: 0.2s;
-  will-change: transform, opacity;
 }
 
 .transition-colors {
@@ -255,7 +229,6 @@ img {
 
 .transition-shadow {
   transition: box-shadow 0.2s ease;
-  will-change: transform;
 }
 
 /* Optimize for mobile */
@@ -291,18 +264,146 @@ img {
 }
 
 /* Additional performance helpers */
-.transform-gpu {
-  transform: translate3d(0, 0, 0);
-  will-change: transform;
-}
-
-/* Optimize list rendering */
 .package-grid-item {
   contain: layout style paint;
 }
 
 /* Optimize modal rendering */
 .modal-overlay {
-  will-change: opacity;
   backface-visibility: hidden;
+}
+
+/* GLOBAL DARK THEME OVERRIDES (Approach 1) */
+@layer base {
+  .dark-theme {
+    color-scheme: dark;
+    background-color: #0f172a !important; /* slate-900 */
+    color: #f8fafc !important; /* slate-50 */
+  }
+
+  /* Override standard Tailwind light classes to be dark */
+  .dark-theme .bg-white {
+    background-color: #1e293b !important; /* slate-800 */
+  }
+  
+  .dark-theme .text-gray-900, .dark-theme .text-slate-900 {
+    color: #f8fafc !important;
+  }
+  
+  .dark-theme .text-gray-800, .dark-theme .text-slate-800 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark-theme .text-gray-700, .dark-theme .text-slate-700 {
+    color: #e2e8f0 !important;
+  }
+  
+  .dark-theme .text-gray-600, .dark-theme .text-slate-600 {
+    color: #cbd5e1 !important;
+  }
+
+  .dark-theme .text-gray-500, .dark-theme .text-slate-500 {
+    color: #94a3b8 !important;
+  }
+
+  .dark-theme .bg-gray-50, .dark-theme .bg-slate-50, .dark-theme .bg-slate-100, .dark-theme .bg-gray-100 {
+    background-color: #0f172a !important;
+  }
+  
+  .dark-theme .border-gray-200, .dark-theme .border-slate-200, .dark-theme .border-slate-100, .dark-theme .border-gray-100 {
+    border-color: #334155 !important;
+  }
+  
+  .dark-theme .border-gray-300, .dark-theme .border-slate-300 {
+    border-color: #475569 !important;
+  }
+
+  /* Hover states */
+  .dark-theme .hover\:bg-gray-50:hover, .dark-theme .hover\:bg-slate-50:hover {
+    background-color: #334155 !important;
+  }
+
+  .dark-theme .hover\:bg-gray-100:hover, .dark-theme .hover\:bg-slate-100:hover {
+    background-color: #475569 !important;
+  }
+
+  /* Inputs, selects, and pseudo-inputs (like CustomSelect) */
+  .dark-theme input, .dark-theme select, .dark-theme textarea {
+    background-color: #0f172a !important; /* slate-900 */
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+  }
+  
+  /* Fix placeholders globally in dark mode */
+  .dark-theme ::placeholder {
+    color: #94a3b8 !important; /* slate-400 */
+    opacity: 1 !important;
+  }
+
+  /* Target opacity utility classes that might have been missed */
+  .dark-theme .bg-slate-50\/50, .dark-theme .bg-slate-100\/50, .dark-theme .bg-slate-50\/80 {
+    background-color: #0f172a !important;
+  }
+
+  /* Ensure labels have good contrast */
+  .dark-theme label, .dark-theme .font-medium, .dark-theme .font-bold {
+    color: #e2e8f0 !important;
+  }
+  
+  /* Role Badges (using .rounded-full to target pills without affecting layout bg) */
+  .dark-theme .bg-purple-100.rounded-full {
+    background-color: rgba(168, 85, 247, 0.15) !important;
+    color: #c084fc !important;
+  }
+  .dark-theme .bg-indigo-100.rounded-full {
+    background-color: rgba(99, 102, 241, 0.15) !important;
+    color: #818cf8 !important;
+  }
+  .dark-theme .bg-blue-100.rounded-full {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+  }
+  .dark-theme .bg-slate-100.rounded-full {
+    background-color: rgba(148, 163, 184, 0.15) !important;
+    color: #e2e8f0 !important;
+  }
+
+  /* Tables */
+  .dark-theme thead {
+    background-color: #0f172a !important;
+    color: #cbd5e1 !important; /* slate-300 for better visibility than slate-400 */
+  }
+
+  /* Status Badges & Active States */
+  .dark-theme .bg-blue-50, .dark-theme .hover\:bg-blue-50:hover {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+  }
+  .dark-theme .text-blue-700, .dark-theme .text-blue-600 {
+    color: #60a5fa !important;
+  }
+  
+  .dark-theme .bg-emerald-50, .dark-theme .hover\:bg-emerald-50:hover {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+    color: #34d399 !important;
+  }
+  .dark-theme .text-emerald-700, .dark-theme .text-emerald-600 {
+    color: #34d399 !important;
+  }
+  
+  .dark-theme .bg-rose-50, .dark-theme .hover\:bg-rose-50:hover {
+    background-color: rgba(244, 63, 94, 0.15) !important;
+    color: #fb7185 !important;
+  }
+  .dark-theme .text-rose-700, .dark-theme .text-rose-600 {
+    color: #fb7185 !important;
+  }
+  
+  .dark-theme .bg-amber-50, .dark-theme .hover\:bg-amber-50:hover {
+    background-color: rgba(245, 158, 11, 0.15) !important;
+    color: #fbbf24 !important;
+  }
+  .dark-theme .text-amber-700, .dark-theme .text-amber-600 {
+    color: #fbbf24 !important;
+  }
 }

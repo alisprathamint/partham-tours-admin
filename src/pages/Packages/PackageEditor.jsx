@@ -4,7 +4,7 @@
 // import { useAuth } from '../../context/AuthContext';
 
 // const PackageEditor = () => {
-//   const { token } = useAuth();
+//   const { user } = useAuth();
 //   const { id } = useParams();
 //   const navigate = useNavigate();
 //   const isNew = !id;
@@ -209,7 +209,7 @@
 //   };
 
 //   if (isLoading) {
-//     return <div className="p-8 text-center text-slate-500">Loading package details...</div>;
+//     return <div className="p-8 text-center text-slate-700">Loading package details...</div>;
 //   }
 
 //   return (
@@ -219,7 +219,7 @@
 //         <div className="flex items-center gap-4">
 //           <button 
 //             onClick={() => navigate('/packages')}
-//             className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+//             className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-700"
 //           >
 //             <ArrowLeft size={20} />
 //           </button>
@@ -227,7 +227,7 @@
 //             <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
 //               {isNew ? 'Create New Package' : 'Edit Package'}
 //             </h2>
-//             <p className="text-sm text-slate-500 mt-1">
+//             <p className="text-sm text-slate-700 mt-1">
 //               {isNew ? 'Add a new travel package.' : 'Update existing package details.'}
 //             </p>
 //           </div>
@@ -353,14 +353,14 @@
 
 //             <div className="space-y-4">
 //               {(!formData.itinerary || formData.itinerary.length === 0) ? (
-//                 <div className="text-center p-4 text-slate-500 border border-dashed rounded-lg">
+//                 <div className="text-center p-4 text-slate-700 border border-dashed rounded-lg">
 //                   No itinerary added yet. Click "+ Add Day" to start building.
 //                 </div>
 //               ) : formData.itinerary.map((day, index) => (
 //                 <div key={index} className="p-4 border border-slate-200 rounded-lg bg-slate-50 relative">
 //                   <button 
 //                     onClick={() => removeItineraryDay(index)}
-//                     className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors"
+//                     className="absolute top-4 right-4 text-slate-800 hover:text-red-500 transition-colors"
 //                   >
 //                     ×
 //                   </button>
@@ -368,7 +368,7 @@
 
 //                   <div className="space-y-3">
 //                     <div>
-//                       <label className="block text-xs font-medium text-slate-500 mb-1">Day Title</label>
+//                       <label className="block text-xs font-medium text-slate-700 mb-1">Day Title</label>
 //                       <input 
 //                         type="text" 
 //                         value={day.title || ''}
@@ -378,7 +378,7 @@
 //                       />
 //                     </div>
 //                     <div>
-//                       <label className="block text-xs font-medium text-slate-500 mb-1">Activities (One per line)</label>
+//                       <label className="block text-xs font-medium text-slate-700 mb-1">Activities (One per line)</label>
 //                       <textarea 
 //                         rows="3"
 //                         value={Array.isArray(day.activities) ? day.activities.join('\n') : (day.activities || '')}
@@ -467,14 +467,14 @@
 //                 </div>
 //               ) : (
 //                 <div className="space-y-1 text-center flex flex-col items-center justify-center h-full w-full">
-//                   <ImageIcon className="mx-auto h-12 w-12 text-slate-400" />
-//                   <div className="flex text-sm text-slate-600 justify-center">
+//                   <ImageIcon className="mx-auto h-12 w-12 text-slate-800" />
+//                   <div className="flex text-sm text-slate-800 justify-center">
 //                     <span className="relative rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
 //                       <span>Upload main image</span>
 //                       <input id="file-upload" name="file-upload" type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
 //                     </span>
 //                   </div>
-//                   <p className="text-xs text-slate-500">PNG, JPG up to 5MB</p>
+//                   <p className="text-xs text-slate-700">PNG, JPG up to 5MB</p>
 //                 </div>
 //               )}
 //             </div>
@@ -504,8 +504,8 @@
 
 //             <div className="mt-1 flex justify-center px-6 pt-5 pb-5 border-2 border-slate-200 border-dashed rounded-lg hover:bg-slate-50 transition-colors cursor-pointer relative">
 //               <div className="space-y-1 text-center w-full">
-//                 <ImageIcon className="mx-auto h-8 w-8 text-slate-400" />
-//                 <div className="flex text-sm text-slate-600 justify-center">
+//                 <ImageIcon className="mx-auto h-8 w-8 text-slate-800" />
+//                 <div className="flex text-sm text-slate-800 justify-center">
 //                   <span className="relative rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
 //                     <span>Upload multiple images</span>
 //                     <input type="file" multiple accept="image/*" onChange={handleGalleryUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -525,7 +525,7 @@
 //               <h3 className="text-lg font-bold text-slate-800">Add New Destination</h3>
 //             </div>
 //             <div className="p-6 space-y-4">
-//               <p className="text-sm text-slate-500">Create a destination on-the-fly without leaving this page.</p>
+//               <p className="text-sm text-slate-700">Create a destination on-the-fly without leaving this page.</p>
 //               <div>
 //                 <label className="block text-sm font-medium text-slate-700 mb-1">Destination Name</label>
 //                 <input 
@@ -541,7 +541,7 @@
 //             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
 //               <button 
 //                 onClick={() => setShowDestinationModal(false)}
-//                 className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors"
+//                 className="px-4 py-2 text-slate-800 font-medium hover:bg-slate-200 rounded-lg transition-colors"
 //               >
 //                 Cancel
 //               </button>
@@ -572,9 +572,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Save, ArrowLeft, Image as ImageIcon, MapPin, X, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axios';
+import { getImageUrl } from '../../utils/imageHelper';
 
 const PackageEditor = () => {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = !id;
@@ -605,8 +607,8 @@ const PackageEditor = () => {
 
   useEffect(() => {
     // Fetch available destinations and categories
-    fetch('http://127.0.0.1:5000/api/packages')
-      .then(res => res.json())
+    api.get('/packages')
+      .then(res => res.data)
       .then(data => {
         if (data.success) {
           setDestinations(data.destinations || []);
@@ -617,8 +619,8 @@ const PackageEditor = () => {
 
     if (!isNew) {
       // Fetch package details for editing
-      fetch(`http://127.0.0.1:5000/api/packages/${id}`)
-        .then(res => res.json())
+      api.get(`/packages/${id}`)
+        .then(res => res.data)
         .then(data => {
           if (data.success) {
             setFormData(data.package);
@@ -698,21 +700,15 @@ const PackageEditor = () => {
     uploadData.append('file', file);
 
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: uploadData
-      });
-      const data = await res.json();
+      const res = await api.post('/upload', uploadData);
+      const data = res.data;
       if (data.success) {
         setFormData(prev => ({ ...prev, image: data.file.url }));
       }
     } catch (err) {
       console.error("Upload failed", err);
     }
-  }, [token]);
+  }, [user]);
 
   const handleGalleryUpload = useCallback(async (e) => {
     const files = Array.from(e.target.files);
@@ -724,14 +720,8 @@ const PackageEditor = () => {
     });
 
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/upload-multiple', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: uploadData
-      });
-      const data = await res.json();
+      const res = await api.post('/upload-multiple', uploadData);
+      const data = res.data;
       if (data.success) {
         const newUrls = data.files.map(f => f.url);
         setFormData(prev => ({
@@ -742,7 +732,7 @@ const PackageEditor = () => {
     } catch (err) {
       console.error("Gallery upload failed", err);
     }
-  }, [token]);
+  }, [user]);
 
   const removeGalleryImage = useCallback((index) => {
     setFormData(prev => {
@@ -771,15 +761,9 @@ const PackageEditor = () => {
     uploadData.append('file', file);
 
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/packages/extract-from-pdf', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: uploadData
-      });
+      const res = await api.post('/packages/extract-from-pdf', uploadData);
       
-      const data = await res.json();
+      const data = res.data;
       
       if (data.success && data.data) {
         setFormData(prev => ({
@@ -813,19 +797,14 @@ const PackageEditor = () => {
     setIsSaving(true);
 
     try {
-      const url = isNew ? 'http://127.0.0.1:5000/api/packages' : `http://127.0.0.1:5000/api/packages/${id}`;
-      const method = isNew ? 'POST' : 'PUT';
+      let response;
+      if (isNew) {
+        response = await api.post('/packages', formData);
+      } else {
+        response = await api.put(`/packages/${id}`, formData);
+      }
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success) {
         alert(isNew ? 'Package created successfully!' : 'Package updated successfully!');
@@ -839,20 +818,13 @@ const PackageEditor = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, id, token, navigate]);
+  }, [formData, isNew, id, user, navigate]);
 
-  // Memoized image URL helper
-  const getImageUrl = useCallback((image) => {
-    if (!image) return null;
-    if (image.startsWith('http')) return image;
-    if (image.startsWith('/uploads')) return `http://127.0.0.1:5000${image}`;
-    if (image.startsWith('/')) return image;
-    return '/' + image;
-  }, []);
+  // Memoized image URL helper is now imported
 
   if (isLoading) {
     return (
-      <div className="p-8 text-center text-slate-500">
+      <div className="p-8 text-center text-slate-700">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-slate-200 border-t-blue-600"></div>
         <p className="mt-2">Loading package details...</p>
       </div>
@@ -866,7 +838,7 @@ const PackageEditor = () => {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/packages')}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-700"
           >
             <ArrowLeft size={20} />
           </button>
@@ -874,7 +846,7 @@ const PackageEditor = () => {
             <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
               {isNew ? 'Create New Package' : 'Edit Package'}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-700 mt-1">
               {isNew ? 'Add a new travel package.' : 'Update existing package details.'}
             </p>
           </div>
@@ -1007,14 +979,14 @@ const PackageEditor = () => {
 
             <div className="space-y-4">
               {(!formData.itinerary || formData.itinerary.length === 0) ? (
-                <div className="text-center p-4 text-slate-500 border border-dashed rounded-lg">
+                <div className="text-center p-4 text-slate-700 border border-dashed rounded-lg">
                   No itinerary added yet. Click "+ Add Day" to start building.
                 </div>
               ) : formData.itinerary.map((day, index) => (
                 <div key={index} className="p-4 border border-slate-200 rounded-lg bg-slate-50 relative">
                   <button
                     onClick={() => removeItineraryDay(index)}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors"
+                    className="absolute top-4 right-4 text-slate-800 hover:text-red-500 transition-colors"
                   >
                     ×
                   </button>
@@ -1022,7 +994,7 @@ const PackageEditor = () => {
 
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Day Title</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Day Title</label>
                       <input
                         type="text"
                         value={day.title || ''}
@@ -1032,7 +1004,7 @@ const PackageEditor = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Activities (One per line)</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Activities (One per line)</label>
                       <textarea
                         rows="3"
                         value={Array.isArray(day.activities) ? day.activities.join('\n') : (day.activities || '')}
@@ -1139,14 +1111,14 @@ const PackageEditor = () => {
                 </div>
               ) : (
                 <div className="space-y-1 text-center flex flex-col items-center justify-center h-full w-full">
-                  <ImageIcon className="mx-auto h-12 w-12 text-slate-400" />
-                  <div className="flex text-sm text-slate-600 justify-center">
+                  <ImageIcon className="mx-auto h-12 w-12 text-slate-800" />
+                  <div className="flex text-sm text-slate-800 justify-center">
                     <span className="relative rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
                       <span>Upload main image</span>
                       <input id="file-upload" name="file-upload" type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">PNG, JPG up to 5MB</p>
+                  <p className="text-xs text-slate-700">PNG, JPG up to 5MB</p>
                 </div>
               )}
             </div>
@@ -1182,8 +1154,8 @@ const PackageEditor = () => {
 
             <div className="mt-1 flex justify-center px-6 pt-5 pb-5 border-2 border-slate-200 border-dashed rounded-lg hover:bg-slate-50 transition-colors cursor-pointer relative">
               <div className="space-y-1 text-center w-full">
-                <ImageIcon className="mx-auto h-8 w-8 text-slate-400" />
-                <div className="flex text-sm text-slate-600 justify-center">
+                <ImageIcon className="mx-auto h-8 w-8 text-slate-800" />
+                <div className="flex text-sm text-slate-800 justify-center">
                   <span className="relative rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
                     <span>Upload multiple images</span>
                     <input type="file" multiple accept="image/*" onChange={handleGalleryUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -1203,7 +1175,7 @@ const PackageEditor = () => {
               <h3 className="text-lg font-bold text-slate-800">Add New Destination</h3>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-slate-500">Create a destination on-the-fly without leaving this page.</p>
+              <p className="text-sm text-slate-700">Create a destination on-the-fly without leaving this page.</p>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Destination Name</label>
                 <input
@@ -1219,7 +1191,7 @@ const PackageEditor = () => {
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
               <button
                 onClick={() => setShowDestinationModal(false)}
-                className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-slate-800 font-medium hover:bg-slate-200 rounded-lg transition-colors"
               >
                 Cancel
               </button>

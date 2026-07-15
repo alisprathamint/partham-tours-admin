@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Search, MapPin, Phone, Mail, Building2, MoreVertical, Edit2, Trash2, X, Star, Filter, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axios';
 
 // Mock Data for Branches
 const MOCK_BRANCHES = [
@@ -61,9 +62,9 @@ const CustomSelect = ({ label, options, value, onChange, placeholder = "Select..
           onClick={() => setIsOpen(!isOpen)}
           className={`w-full min-w-[140px] px-3 py-2 bg-white border ${isOpen ? 'border-blue-500 ring-2 ring-blue-500' : 'border-slate-300'} rounded-md text-sm text-slate-900 font-medium cursor-pointer flex justify-between items-center shadow-sm transition-shadow`}
         >
-          <span className={value && value !== 'ALL' ? 'text-slate-900' : 'text-slate-500'}>{selectedOption && value !== 'ALL' ? selectedOption.label : placeholder}</span>
-          <div className={`text-slate-500 transition-transform duration-300 ml-2 ${isOpen ? '-rotate-180' : ''}`}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <span className={value && value !== 'ALL' ? 'text-slate-900' : 'text-slate-700'}>{selectedOption && value !== 'ALL' ? selectedOption.label : placeholder}</span>
+          <div className={`text-slate-700 transition-transform duration-300 ${isOpen ? '-rotate-180' : ''}`}>
+            <ChevronDown size={16} />
           </div>
         </div>
         
@@ -92,15 +93,13 @@ const CustomSelect = ({ label, options, value, onChange, placeholder = "Select..
 };
 
 const BranchManager = () => {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [branches, setBranches] = useState([]);
 
   const fetchBranches = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/branches', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const res = await api.get('/branches');
+      const data = res.data;
       if (data.success) {
         setBranches(data.data.map(b => ({
           id: b.id,
@@ -119,8 +118,8 @@ const BranchManager = () => {
   };
 
   useEffect(() => {
-    if (token) fetchBranches();
-  }, [token]);
+    if (user) fetchBranches();
+  }, [user]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -215,11 +214,8 @@ const BranchManager = () => {
   const handleDeleteBranch = async (branchId) => {
     if (confirm("Are you sure you want to delete this branch?")) {
       try {
-        const res = await fetch(`http://127.0.0.1:5000/api/branches/${branchId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
+        const res = await api.delete(`/branches/${branchId}`);
+        const data = res.data;
         if (data.success) {
           fetchBranches();
         } else {
@@ -246,24 +242,14 @@ const BranchManager = () => {
         status: formData.status
       };
 
-      let url = 'http://127.0.0.1:5000/api/branches';
-      let method = 'POST';
-
+      let res;
       if (isEditing) {
-        url = `http://127.0.0.1:5000/api/branches/${editingBranchId}`;
-        method = 'PUT';
+        res = await api.put(`/branches/${editingBranchId}`, payload);
+      } else {
+        res = await api.post('/branches', payload);
       }
-
-      const res = await fetch(url, {
-        method,
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
       
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
         fetchBranches();
         handleCloseModal();
@@ -283,7 +269,7 @@ const BranchManager = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Branch Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage your physical offices and contact details across locations.</p>
+          <p className="text-sm text-slate-700 mt-1">Manage your physical offices and contact details across locations.</p>
         </div>
         <button 
           onClick={handleOpenAddModal}
@@ -321,13 +307,13 @@ const BranchManager = () => {
            <div>
              <label className="block text-xs font-bold text-slate-700 mb-1.5">Search Branches</label>
              <div className="relative">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-800" size={16} />
                <input 
                  type="text" 
                  placeholder="Search branches..." 
                  value={searchTerm}
                  onChange={(e) => setSearchTerm(e.target.value)}
-                 className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow shadow-sm"
+                 className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 font-medium placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow shadow-sm"
                />
              </div>
            </div>
@@ -340,8 +326,8 @@ const BranchManager = () => {
         {filteredBranches.length === 0 ? (
           <div className="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-xl border border-dashed border-slate-300">
             <Building2 size={40} className="text-slate-300 mb-3" />
-            <p className="text-sm font-medium text-slate-600">No branches found.</p>
-            <p className="text-xs text-slate-400 mt-1">Try adjusting your search query.</p>
+            <p className="text-sm font-medium text-slate-800">No branches found.</p>
+            <p className="text-xs text-slate-800 mt-1">Try adjusting your search query.</p>
           </div>
         ) : (
           filteredBranches.map((branch) => (
@@ -352,7 +338,7 @@ const BranchManager = () => {
               <div className="p-5 border-b border-slate-100 flex justify-between items-start">
                 <div className="flex gap-3 items-start">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                    branch.isMain ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-50 text-slate-500 border-slate-200'
+                    branch.isMain ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-50 text-slate-700 border-slate-200'
                   }`}>
                     <Building2 size={20} />
                   </div>
@@ -367,7 +353,7 @@ const BranchManager = () => {
                       ) : (
                         <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase">Inactive</span>
                       )}
-                      <span className="text-[10px] text-slate-400 font-medium">{branch.employeeCount} Employees</span>
+                      <span className="text-[10px] text-slate-800 font-medium">{branch.employeeCount} Employees</span>
                     </div>
                   </div>
                 </div>
@@ -378,7 +364,7 @@ const BranchManager = () => {
                       e.stopPropagation();
                       setOpenDropdownId(openDropdownId === branch.id ? null : branch.id);
                     }}
-                    className={`text-slate-400 hover:text-slate-700 p-1 rounded transition-colors ${openDropdownId === branch.id ? 'bg-slate-100 text-slate-700' : 'hover:bg-slate-50'}`}
+                    className={`text-slate-800 hover:text-slate-700 p-1 rounded transition-colors ${openDropdownId === branch.id ? 'bg-slate-100 text-slate-700' : 'hover:bg-slate-50'}`}
                   >
                     <MoreVertical size={16} />
                   </button>
@@ -404,16 +390,16 @@ const BranchManager = () => {
 
               <div className="p-5 space-y-3">
                 <div className="flex items-start gap-2.5 text-sm">
-                  <MapPin size={16} className="text-slate-400 shrink-0 mt-0.5" />
-                  <span className="text-slate-600 leading-snug">{branch.address}</span>
+                  <MapPin size={16} className="text-slate-800 shrink-0 mt-0.5" />
+                  <span className="text-slate-800 leading-snug">{branch.address}</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-sm">
-                  <Phone size={16} className="text-slate-400 shrink-0" />
-                  <span className="text-slate-600">{branch.phone}</span>
+                  <Phone size={16} className="text-slate-800 shrink-0" />
+                  <span className="text-slate-800">{branch.phone}</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-sm">
-                  <Mail size={16} className="text-slate-400 shrink-0" />
-                  <span className="text-slate-600 truncate">{branch.email}</span>
+                  <Mail size={16} className="text-slate-800 shrink-0" />
+                  <span className="text-slate-800 truncate">{branch.email}</span>
                 </div>
               </div>
             </div>
@@ -430,11 +416,11 @@ const BranchManager = () => {
             <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
               <div>
                 <h3 className="text-base font-bold text-slate-800">{isEditing ? 'Edit Branch' : 'Add New Branch'}</h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">{isEditing ? 'Update branch details.' : 'Enter the details for your new office location.'}</p>
+                <p className="text-[10px] text-slate-700 mt-0.5">{isEditing ? 'Update branch details.' : 'Enter the details for your new office location.'}</p>
               </div>
               <button 
                 onClick={handleCloseModal}
-                className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                className="text-slate-800 hover:text-slate-800 p-1 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X size={18} />
               </button>
@@ -500,7 +486,7 @@ const BranchManager = () => {
                     </label>
                     <div>
                       <p className="text-xs font-bold text-slate-700">Set as Main Office</p>
-                      <p className="text-[9px] text-slate-500">This address will be used in invoices.</p>
+                      <p className="text-[9px] text-slate-700">This address will be used in invoices.</p>
                     </div>
                   </div>
 
@@ -517,7 +503,7 @@ const BranchManager = () => {
                       </label>
                       <div>
                         <p className="text-xs font-bold text-slate-700">Branch is Active</p>
-                        <p className="text-[9px] text-slate-500">Hide inactive branches from system.</p>
+                        <p className="text-[9px] text-slate-700">Hide inactive branches from system.</p>
                       </div>
                     </div>
                   )}

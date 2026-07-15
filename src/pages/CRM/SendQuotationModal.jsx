@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Download, Package as PackageIcon, CheckCircle2, IndianRupee, Users, Calendar, MapPin, Printer, MessageCircle } from 'lucide-react';
+import { X, Download, Package as PackageIcon, CheckCircle2, IndianRupee, Users, Calendar, MapPin, Printer, MessageCircle, FileText } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axios';
 
-const SendQuotationModal = ({ isOpen, onClose, query }) => {
-  const { token } = useAuth();
+const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
+  const { user } = useAuth();
   const [packages, setPackages] = useState([]);
   const [selectedPkg, setSelectedPkg] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,8 +53,8 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
   const fetchPackages = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/packages');
-      const data = await response.json();
+      const response = await api.get('/packages');
+      const data = response.data;
       if (data.success) {
         setPackages(data.packages);
       }
@@ -83,17 +84,13 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
   const finalPrice = Math.max(0, parseInt(formData.sellingPrice || '0') - parseInt(formData.discount || '0'));
 
   const handlePrint = async () => {
-    // Automation: Update status to QUOTATION_SENT
-    if (query && query.id && token) {
+    // Automation: Update status to PROPOSAL_SENT
+    if (query && query.id && user) {
       try {
-        await fetch(`http://127.0.0.1:5000/api/crm/leads/${query.id}`, {
-          method: 'PUT',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ status: 'QUOTATION_SENT' })
-        });
+        await api.put(`/crm/leads/${query.id}`, { status: 'PROPOSAL_SENT' });
+        if (onStatusUpdate) {
+          onStatusUpdate(query.id, 'PROPOSAL_SENT');
+        }
       } catch (err) {
         console.error('Auto status update failed', err);
       }
@@ -102,17 +99,13 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
   };
 
   const handleWhatsApp = async () => {
-    // Automation: Update status to QUOTATION_SENT
-    if (query && query.id && token) {
+    // Automation: Update status to PROPOSAL_SENT
+    if (query && query.id && user) {
       try {
-        await fetch(`http://127.0.0.1:5000/api/crm/leads/${query.id}`, {
-          method: 'PUT',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ status: 'QUOTATION_SENT' })
-        });
+        await api.put(`/crm/leads/${query.id}`, { status: 'PROPOSAL_SENT' });
+        if (onStatusUpdate) {
+          onStatusUpdate(query.id, 'PROPOSAL_SENT');
+        }
       } catch (err) {
         console.error('Auto status update failed', err);
       }
@@ -143,12 +136,12 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-800 leading-tight">Send Proposal</h2>
-              <p className="text-[11px] text-slate-500">Select a master package and generate PDF.</p>
+              <p className="text-[11px] text-slate-700">Select a master package and generate PDF.</p>
             </div>
           </div>
           <button 
             onClick={handleClose}
-            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 text-slate-800 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
           >
             <X size={20} />
           </button>
@@ -164,7 +157,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">1. Select Package</label>
               {isLoading ? (
-                <div className="p-3 border rounded-lg bg-slate-50 text-slate-500 text-xs">Loading packages...</div>
+                <div className="p-3 border rounded-lg bg-slate-50 text-slate-700 text-xs">Loading packages...</div>
               ) : (
                 <select 
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium text-slate-800 text-sm transition-shadow hover:shadow-sm"
@@ -187,7 +180,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                   
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Customer Name</label>
+                      <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Customer Name</label>
                       <input 
                         type="text" 
                         name="customerName"
@@ -199,7 +192,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                     
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Travel Date</label>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Travel Date</label>
                         <input 
                           type="date" 
                           name="travelDate"
@@ -209,7 +202,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Total Pax</label>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Total Pax</label>
                         <input 
                           type="text" 
                           name="pax"
@@ -224,7 +217,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Selling Price (₹)</label>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Selling Price (₹)</label>
                         <input 
                           type="number" 
                           name="sellingPrice"
@@ -234,7 +227,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Discount (₹)</label>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Discount (₹)</label>
                         <input 
                           type="number" 
                           name="discount"
@@ -250,7 +243,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                 {/* Final Action */}
                 <div className="pt-5 border-t border-slate-100 mt-auto">
                   <div className="bg-slate-50 px-3 py-2.5 rounded-lg border border-slate-200 mb-3 flex justify-between items-center">
-                    <span className="text-xs font-semibold text-slate-600">Final Amount</span>
+                    <span className="text-xs font-semibold text-slate-800">Final Amount</span>
                     <span className="text-lg font-black text-emerald-600">₹ {finalPrice.toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex gap-2">
@@ -284,7 +277,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
           {/* Right Panel: Live PDF Preview */}
           <div className="flex-1 bg-slate-200/60 overflow-y-auto flex justify-center p-6 relative">
             {!selectedPkg ? (
-              <div className="flex flex-col items-center justify-center text-slate-400 h-full">
+              <div className="flex flex-col items-center justify-center text-slate-800 h-full">
                 <div className="w-24 h-32 bg-white rounded shadow-sm border border-slate-200 opacity-50 flex items-center justify-center">
                   <FileTextIcon />
                 </div>
@@ -304,8 +297,8 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                 <div className="flex justify-between items-start border-b-2 border-blue-600 pb-6 mb-8">
                   <div>
                     <h1 className="text-3xl font-black text-blue-700 tracking-tight">PRATHAM TOURS</h1>
-                    <p className="text-sm text-slate-500 font-medium mt-1">Make your travel dream true</p>
-                    <div className="text-[10px] text-slate-500 mt-2 space-y-0.5">
+                    <p className="text-sm text-slate-700 font-medium mt-1">Make your travel dream true</p>
+                    <div className="text-[10px] text-slate-700 mt-2 space-y-0.5">
                       <p>123 Travel Square, Business District</p>
                       <p>Mumbai, Maharashtra 400001</p>
                       <p>+91 98765 43210 | info@prathamtours.com</p>
@@ -313,9 +306,9 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                   </div>
                   <div className="text-right">
                     <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-widest">Quotation</h2>
-                    <p className="text-xs text-slate-500 mt-1">Ref: PT-{Math.floor(1000 + Math.random() * 9000)}</p>
-                    <p className="text-xs text-slate-500">Date: {new Date().toLocaleDateString('en-GB')}</p>
-                    <p className="text-xs text-slate-500 font-bold mt-2 bg-amber-100 text-amber-800 inline-block px-2 py-0.5 rounded">
+                    <p className="text-xs text-slate-700 mt-1">Ref: PT-{Math.floor(1000 + Math.random() * 9000)}</p>
+                    <p className="text-xs text-slate-700">Date: {new Date().toLocaleDateString('en-GB')}</p>
+                    <p className="text-xs text-slate-700 font-bold mt-2 bg-amber-100 text-amber-800 inline-block px-2 py-0.5 rounded">
                       Valid Till: {new Date(formData.validity).toLocaleDateString('en-GB')}
                     </p>
                   </div>
@@ -326,18 +319,18 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                   <div>
                     <h3 className="text-xs font-bold text-blue-600 uppercase mb-2 border-b border-blue-100 pb-1">Prepared For</h3>
                     <p className="font-bold text-slate-800 text-lg">{formData.customerName || 'Customer Name'}</p>
-                    <p className="text-sm text-slate-600">{formData.customerPhone || '+91 XXXXX XXXXX'}</p>
+                    <p className="text-sm text-slate-800">{formData.customerPhone || '+91 XXXXX XXXXX'}</p>
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-blue-600 uppercase mb-2 border-b border-blue-100 pb-1">Trip Details</h3>
                     <div className="grid grid-cols-2 gap-y-2 text-sm">
-                      <span className="text-slate-500">Destination:</span>
+                      <span className="text-slate-700">Destination:</span>
                       <span className="font-semibold text-slate-800">{selectedPkg.location || 'N/A'}</span>
-                      <span className="text-slate-500">Travel Date:</span>
+                      <span className="text-slate-700">Travel Date:</span>
                       <span className="font-semibold text-slate-800">{formData.travelDate ? new Date(formData.travelDate).toLocaleDateString('en-GB') : 'TBD'}</span>
-                      <span className="text-slate-500">Duration:</span>
+                      <span className="text-slate-700">Duration:</span>
                       <span className="font-semibold text-slate-800">{selectedPkg.duration || 'N/A'}</span>
-                      <span className="text-slate-500">Passengers:</span>
+                      <span className="text-slate-700">Passengers:</span>
                       <span className="font-semibold text-slate-800">{formData.pax}</span>
                     </div>
                   </div>
@@ -346,7 +339,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                 {/* Package Main Area */}
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-8">
                   <h3 className="text-xl font-bold text-slate-800 mb-2">{selectedPkg.name}</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">
+                  <p className="text-sm text-slate-800 leading-relaxed">
                     {selectedPkg.description || 'Enjoy a wonderful vacation with our carefully curated tour package featuring the best accommodations, guided tours, and unforgettable experiences.'}
                   </p>
                 </div>
@@ -395,7 +388,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
                 </div>
 
                 {/* Footer Notes */}
-                <div className="text-[10px] text-slate-500 border-t border-slate-200 pt-4 flex justify-between">
+                <div className="text-[10px] text-slate-700 border-t border-slate-200 pt-4 flex justify-between">
                   <div>
                     <p className="font-bold text-slate-700 mb-1">Terms & Conditions:</p>
                     <p>1. 50% advance payment required for confirmation.</p>
@@ -451,13 +444,7 @@ const SendQuotationModal = ({ isOpen, onClose, query }) => {
 };
 
 const FileTextIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-    <polyline points="14 2 14 8 20 8"/>
-    <line x1="16" x2="8" y1="13" y2="13"/>
-    <line x1="16" x2="8" y1="17" y2="17"/>
-    <line x1="10" x2="8" y1="9" y2="9"/>
-  </svg>
+  <FileText size={48} strokeWidth={1.5} />
 );
 
 export default SendQuotationModal;

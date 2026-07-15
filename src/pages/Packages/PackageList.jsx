@@ -3,16 +3,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Edit, Trash2, Search, MapPin, Tag } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import api from '../../api/axios';
+import { getImageUrl } from '../../utils/imageHelper';
 
 // Memoized Package Card Component
 const PackageCard = React.memo(({ pkg, onDelete }) => {
-  const getImageUrl = (image) => {
-    if (!image) return null;
-    if (image.startsWith('http')) return image;
-    if (image.startsWith('/uploads')) return `http://127.0.0.1:5000${image}`;
-    return image;
-  };
-
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col package-grid-item">
       <div className="h-48 bg-slate-200 relative overflow-hidden">
@@ -23,7 +18,7 @@ const PackageCard = React.memo(({ pkg, onDelete }) => {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-100">
+          <div className="w-full h-full flex items-center justify-center text-slate-800 bg-slate-100">
             No Image
           </div>
         )}
@@ -53,23 +48,23 @@ const PackageCard = React.memo(({ pkg, onDelete }) => {
         </h3>
 
         <div className="flex flex-col gap-2 mb-4">
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <MapPin size={14} className="text-slate-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm text-slate-800">
+            <MapPin size={14} className="text-slate-800 flex-shrink-0" />
             <span className="truncate">{pkg.location || 'No location'}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <Tag size={14} className="text-slate-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm text-slate-800">
+            <Tag size={14} className="text-slate-800 flex-shrink-0" />
             <span>{pkg.category || 'Uncategorized'}</span>
           </div>
         </div>
 
         <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-100">
           <div>
-            <span className="text-xs text-slate-500 block">Price</span>
+            <span className="text-xs text-slate-700 block">Price</span>
             <span className="font-bold text-blue-600">₹{pkg.price || '0'}</span>
           </div>
           <div className="text-right">
-            <span className="text-xs text-slate-500 block">Duration</span>
+            <span className="text-xs text-slate-700 block">Duration</span>
             <span className="font-medium text-slate-700">{pkg.duration || 'N/A'}</span>
           </div>
         </div>
@@ -92,8 +87,8 @@ const PackageList = () => {
 
   const fetchPackages = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/packages');
-      const data = await response.json();
+      const response = await api.get('/packages');
+      const data = response.data;
       if (data.success) {
         setPackages(data.packages);
       }
@@ -122,15 +117,10 @@ const PackageList = () => {
     setIsDeleting(packageId);
     try {
       // Add your delete API call here
-      // const response = await fetch(`http://127.0.0.1:5000/api/packages/${packageId}`, {
-      //   method: 'DELETE'
-      // });
-      // if (response.ok) {
-      //   setPackages(prev => prev.filter(pkg => pkg.id !== packageId));
-      // }
-
-      // For demo - remove locally
-      setPackages(prev => prev.filter(pkg => pkg.id !== packageId));
+      const response = await api.delete(`/packages/${packageId}`);
+      if (response.data.success) {
+        setPackages(prev => prev.filter(pkg => pkg.id !== packageId));
+      }
     } catch (error) {
       console.error('Error deleting package:', error);
       alert('Failed to delete package');
@@ -150,7 +140,7 @@ const PackageList = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Packages</h2>
-          <p className="text-sm text-slate-500 mt-1">Manage all your travel packages and itineraries.</p>
+          <p className="text-sm text-slate-700 mt-1">Manage all your travel packages and itineraries.</p>
         </div>
         <Link
           to="/packages/new"
@@ -164,7 +154,7 @@ const PackageList = () => {
       {/* Search and Filters */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+          <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-800" />
           <input
             type="text"
             placeholder="Search packages by name or location..."
@@ -173,24 +163,24 @@ const PackageList = () => {
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-        <div className="text-sm text-slate-500">
+        <div className="text-sm text-slate-700">
           {filteredPackages.length} {filteredPackages.length === 1 ? 'package' : 'packages'}
         </div>
       </div>
 
       {/* Packages Grid */}
       {isLoading ? (
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-slate-700">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-slate-200 border-t-blue-600"></div>
           <p className="mt-2">Loading packages...</p>
         </div>
       ) : filteredPackages.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-slate-200 shadow-sm">
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Search className="text-slate-400" size={24} />
+            <Search className="text-slate-800" size={24} />
           </div>
           <h3 className="text-lg font-medium text-slate-800">No packages found</h3>
-          <p className="text-slate-500 mt-1">
+          <p className="text-slate-700 mt-1">
             {searchQuery ? 'Try adjusting your search or create a new package.' : 'Create your first package to get started.'}
           </p>
         </div>

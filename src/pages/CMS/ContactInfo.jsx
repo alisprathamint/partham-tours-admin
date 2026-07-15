@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Phone, Mail, MapPin, MessageCircle, Globe, Link, Clock, Map } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axios';
 
 const ContactInfo = () => {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -20,8 +21,8 @@ const ContactInfo = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/settings')
-      .then(res => res.json())
+    api.get('/settings')
+      .then(res => res.data)
       .then(data => {
         if (data.success && data.data) {
           setFormData(prev => ({ ...prev, ...data.data }));
@@ -44,16 +45,8 @@ const ContactInfo = () => {
     setIsSaving(true);
     
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/settings', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
+      const response = await api.post('/settings', formData);
+      const data = response.data;
       if (data.success) {
         alert('Contact Info updated successfully!');
       } else {
@@ -68,14 +61,14 @@ const ContactInfo = () => {
   };
 
   if (isLoading) {
-    return <div className="p-12 text-center text-slate-500">Loading contact information...</div>;
+    return <div className="p-12 text-center text-slate-700">Loading contact information...</div>;
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Contact Information</h2>
-        <p className="text-sm text-slate-500 mt-1">Update your business contact details and social media links. These will appear across the website.</p>
+        <p className="text-sm text-slate-700 mt-1">Update your business contact details and social media links. These will appear across the website.</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -87,7 +80,7 @@ const ContactInfo = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
-                <Phone size={16} className="text-slate-400" /> Phone Number
+                <Phone size={16} className="text-slate-800" /> Phone Number
               </label>
               <input 
                 type="text" 
@@ -111,12 +104,12 @@ const ContactInfo = () => {
                 placeholder="+91 XXXXX XXXXX"
                 className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               />
-              <p className="text-xs text-slate-400 mt-1">Used for WhatsApp chat widget.</p>
+              <p className="text-xs text-slate-800 mt-1">Used for WhatsApp chat widget.</p>
             </div>
 
             <div className="md:col-span-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
-                <Mail size={16} className="text-slate-400" /> Email Address
+                <Mail size={16} className="text-slate-800" /> Email Address
               </label>
               <input 
                 type="email" 
@@ -130,7 +123,7 @@ const ContactInfo = () => {
 
             <div className="md:col-span-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
-                <MapPin size={16} className="text-slate-400" /> Physical Address
+                <MapPin size={16} className="text-slate-800" /> Physical Address
               </label>
               <textarea 
                 name="address"
@@ -144,7 +137,7 @@ const ContactInfo = () => {
 
             <div className="md:col-span-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
-                <Clock size={16} className="text-slate-400" /> Working Hours
+                <Clock size={16} className="text-slate-800" /> Working Hours
               </label>
               <textarea 
                 name="workingHours"
@@ -158,7 +151,7 @@ const ContactInfo = () => {
 
             <div className="md:col-span-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
-                <Map size={16} className="text-slate-400" /> Google Map Link
+                <Map size={16} className="text-slate-800" /> Google Map Link
               </label>
               <input 
                 type="url" 

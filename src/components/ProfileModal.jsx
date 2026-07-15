@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, User, Mail, Lock, Briefcase, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/axios';
 
 const ProfileModal = ({ isOpen, onClose }) => {
   const { user, token, updateUser } = useAuth();
@@ -45,20 +46,13 @@ const ProfileModal = ({ isOpen, onClose }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          ...(formData.password && { password: formData.password })
-        })
+      const response = await api.put('/profile', {
+        name: formData.name,
+        email: formData.email,
+        ...(formData.password && { password: formData.password })
       });
 
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success) {
         updateUser(data.user);
@@ -86,7 +80,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
           <h2 className="text-base font-bold text-slate-800">User Profile</h2>
           <button 
             onClick={handleClose}
-            className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-full transition-colors"
+            className="text-slate-800 hover:text-slate-800 hover:bg-slate-100 p-1.5 rounded-full transition-colors"
           >
             <X size={20} />
           </button>
@@ -99,7 +93,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
               {user?.name?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'U'}
             </div>
             <h3 className="text-lg font-bold text-slate-800">{user?.name || 'User'}</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{user?.role === 'ADMIN' ? 'Super Admin' : 'Sales Executive'}</p>
+            <p className="text-xs text-slate-700 mt-0.5">{user?.role === 'ADMIN' ? 'Super Admin' : 'Sales Executive'}</p>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -112,7 +106,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Read Only Fields */}
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500 mb-1">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 mb-1">
                   <Briefcase size={14} />
                   Designation
                 </label>
@@ -120,12 +114,12 @@ const ProfileModal = ({ isOpen, onClose }) => {
                   type="text"
                   value={user?.role === 'ADMIN' ? 'Super Admin' : 'Sales'}
                   readOnly
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 cursor-not-allowed focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500 mb-1">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 mb-1">
                   <MapPin size={14} />
                   Region
                 </label>
@@ -133,13 +127,13 @@ const ProfileModal = ({ isOpen, onClose }) => {
                   type="text"
                   value={user?.region || 'Not set'}
                   readOnly
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 cursor-not-allowed focus:outline-none"
                 />
               </div>
 
               {/* Editable Fields */}
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-800 mb-1">
                   <User size={14} />
                   Full Name
                 </label>
@@ -154,7 +148,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
               </div>
 
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-800 mb-1">
                   <Mail size={14} />
                   Email Address
                 </label>
@@ -170,7 +164,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
               {/* Password Fields */}
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-800 mb-1">
                   <Lock size={14} />
                   New Password
                 </label>
@@ -182,11 +176,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
                   placeholder="Enter new password"
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
-                <p className="text-[10px] text-slate-400 mt-1 ml-0.5">• At least 8 characters required</p>
+                <p className="text-[10px] text-slate-800 mt-1 ml-0.5">• At least 8 characters required</p>
               </div>
 
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-800 mb-1">
                   <Lock size={14} />
                   Confirm Password
                 </label>
@@ -205,7 +199,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-5 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                className="px-5 py-2 text-sm font-medium text-slate-800 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 Cancel
               </button>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Plus, Trash2, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import api from '../../api/axios';
+import { getImageUrl } from '../../utils/imageHelper';
 
 const HomePageSections = () => {
   const [activeTab, setActiveTab] = useState('hero');
@@ -99,8 +101,8 @@ const HomePageSections = () => {
   };
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/settings')
-      .then(res => res.json())
+    api.get('/settings')
+      .then(res => res.data)
       .then(data => {
         if (data.success && data.data) {
           setFormData(prev => ({ ...prev, ...data.data }));
@@ -175,11 +177,8 @@ const HomePageSections = () => {
     data.append('file', file);
 
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/upload', {
-        method: 'POST',
-        body: data
-      });
-      const result = await res.json();
+      const res = await api.post('/upload', data);
+      const result = res.data;
       
       if (result.success && result.file.url) {
         if (uploadingField.arrayName) {
@@ -202,17 +201,8 @@ const HomePageSections = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://127.0.0.1:5000/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
+      const response = await api.post('/settings', formData);
+      const data = response.data;
       if (data.success) {
         alert('Home Page sections updated successfully!');
       } else {
@@ -235,9 +225,9 @@ const HomePageSections = () => {
       displayValue = displayValue.replace(/&quot;/g, '"').replace(/&#x2F;/ig, '/').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
     }
     
-    // Prefix /uploads to load from backend
+    // Use centralized getImageUrl if it's an uploaded image
     if (typeof displayValue === 'string' && displayValue.startsWith('/uploads')) {
-      displayValue = `http://127.0.0.1:5000${displayValue}`;
+      displayValue = getImageUrl(displayValue);
     }
 
     return (
@@ -259,7 +249,7 @@ const HomePageSections = () => {
   if (isLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[400px]">
-        <div className="text-slate-500 flex items-center gap-2">
+        <div className="text-slate-700 flex items-center gap-2">
           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
           Loading settings...
         </div>
@@ -286,7 +276,7 @@ const HomePageSections = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-900 to-blue-700 tracking-tight">Home Page Content</h2>
-          <p className="text-slate-500 mt-1">Edit all sections of the home page with pre-filled content.</p>
+          <p className="text-slate-700 mt-1">Edit all sections of the home page with pre-filled content.</p>
         </div>
         <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white px-6 py-2.5 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 shadow-lg shadow-blue-200 hover:shadow-blue-300 transform hover:-translate-y-0.5">
           <Save size={20} />
@@ -305,7 +295,7 @@ const HomePageSections = () => {
                 className={`flex-shrink-0 px-4 py-3 rounded-xl text-left text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-md shadow-blue-200 font-semibold'
-                    : 'text-slate-600 hover:bg-white hover:text-blue-700 hover:shadow-sm'
+                    : 'text-slate-800 hover:bg-white hover:text-blue-700 hover:shadow-sm'
                 }`}
               >
                 {tab.label}
@@ -332,17 +322,17 @@ const HomePageSections = () => {
                   <div key={index} className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white hover:border-blue-200 hover:shadow-md transition-all duration-300">
                     <div className="flex items-center justify-between px-5 py-4 bg-slate-50/50 hover:bg-blue-50/30 transition-colors cursor-pointer" onClick={() => toggleItem('hero', index)}>
                       <div className="flex items-center gap-3">
-                        {slide.image && <img src={slide.image.startsWith('/uploads') ? `http://127.0.0.1:5000${slide.image}` : slide.image} alt="" className="h-10 w-16 object-cover rounded" onError={(e) => { e.target.style.display = 'none'; }} />}
+                        {slide.image && <img src={getImageUrl(slide.image)} alt="" className="h-10 w-16 object-cover rounded" onError={(e) => { e.target.style.display = 'none'; }} />}
                         <div>
                           <span className="font-medium text-slate-700 text-sm">Slide {index + 1}</span>
-                          <span className="text-slate-400 text-xs ml-2">{slide.title?.substring(0, 40)}...</span>
+                          <span className="text-slate-800 text-xs ml-2">{slide.title?.substring(0, 40)}...</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <button onClick={(e) => { e.stopPropagation(); removeArrayItem('homeHeroSlides', index); }} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors">
                           <Trash2 size={16} />
                         </button>
-                        {isItemExpanded('hero', index) ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                        {isItemExpanded('hero', index) ? <ChevronUp size={16} className="text-slate-800" /> : <ChevronDown size={16} className="text-slate-800" />}
                       </div>
                     </div>
                     {isItemExpanded('hero', index) && (
@@ -420,7 +410,7 @@ const HomePageSections = () => {
                       <span className="font-medium text-slate-700 text-sm">{offer.title || `Offer ${index + 1}`} — {offer.days} — {offer.price}</span>
                       <div className="flex items-center gap-2">
                         <button onClick={(e) => { e.stopPropagation(); removeArrayItem('homeOffers', index); }} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                        {isItemExpanded('offer', index) ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                        {isItemExpanded('offer', index) ? <ChevronUp size={16} className="text-slate-800" /> : <ChevronDown size={16} className="text-slate-800" />}
                       </div>
                     </div>
                     {isItemExpanded('offer', index) && (
@@ -524,7 +514,7 @@ const HomePageSections = () => {
                       </span>
                       <div className="flex items-center gap-2">
                         <button onClick={(e) => { e.stopPropagation(); removeArrayItem('homeWhyChooseFeatures', index); }} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                        {isItemExpanded('feature', index) ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                        {isItemExpanded('feature', index) ? <ChevronUp size={16} className="text-slate-800" /> : <ChevronDown size={16} className="text-slate-800" />}
                       </div>
                     </div>
                     {isItemExpanded('feature', index) && (
@@ -579,13 +569,13 @@ const HomePageSections = () => {
                   <div key={index} className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white hover:border-blue-200 hover:shadow-md transition-all duration-300">
                     <div className="flex items-center justify-between px-5 py-4 bg-slate-50/50 hover:bg-blue-50/30 transition-colors cursor-pointer" onClick={() => toggleItem('testimonial', index)}>
                       <div className="flex items-center gap-3">
-                        {testimonial.image && <img src={testimonial.image.startsWith('/uploads') ? `http://127.0.0.1:5000${testimonial.image}` : testimonial.image} alt="" className="h-8 w-8 rounded-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />}
+                        {testimonial.image && <img src={getImageUrl(testimonial.image)} alt="" className="h-8 w-8 rounded-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />}
                         <span className="font-medium text-slate-700 text-sm">{testimonial.name || `Review ${index + 1}`}</span>
                         <span className="text-yellow-500 text-xs">{'★'.repeat(testimonial.rating || 5)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button onClick={(e) => { e.stopPropagation(); removeArrayItem('homeTestimonials', index); }} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                        {isItemExpanded('testimonial', index) ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                        {isItemExpanded('testimonial', index) ? <ChevronUp size={16} className="text-slate-800" /> : <ChevronDown size={16} className="text-slate-800" />}
                       </div>
                     </div>
                     {isItemExpanded('testimonial', index) && (
@@ -656,10 +646,10 @@ const HomePageSections = () => {
                       <button onClick={() => removeArrayItem('homeHappyCustomersImages', index)} className="absolute top-2 right-2 text-red-400 hover:text-red-600 bg-white rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
                         <Trash2 size={14} />
                       </button>
-                      {img.url && <img src={img.url.startsWith('/uploads') ? `http://127.0.0.1:5000${img.url}` : img.url} alt={`Gallery ${index + 1}`} className="w-full h-32 object-cover rounded-lg mb-3" onError={(e) => { e.target.style.display = 'none'; }} />}
+                      {img.url && <img src={getImageUrl(img.url)} alt={`Gallery ${index + 1}`} className="w-full h-32 object-cover rounded-lg mb-3" onError={(e) => { e.target.style.display = 'none'; }} />}
                       <div className="flex gap-2">
                         <input type="text" value={img.url || ''} onChange={(e) => handleArrayChange('homeHappyCustomersImages', index, 'url', e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg outline-none text-xs" placeholder="Image URL" />
-                        <button onClick={() => triggerImageUpload('url', index, 'homeHappyCustomersImages')} className="px-2 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 border border-slate-300 flex-shrink-0">
+                        <button onClick={() => triggerImageUpload('url', index, 'homeHappyCustomersImages')} className="px-2 py-2 bg-slate-100 text-slate-800 rounded-lg hover:bg-slate-200 border border-slate-300 flex-shrink-0">
                           <ImageIcon size={14} />
                         </button>
                       </div>

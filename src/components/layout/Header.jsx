@@ -1,42 +1,81 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Search, Menu, LogOut, ChevronDown, User as UserIcon, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Bell, Search, Menu, LogOut, ChevronDown, User as UserIcon, AlertCircle, CheckCircle, Clock, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileModal from '../ProfileModal';
+import { useNotifications } from '../../context/NotificationContext';
 
 const Header = ({ toggleSidebar, isSidebarOpen }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isDashboard = location.pathname === '/';
   const [showDropdown, setShowDropdown] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Theme State
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Default to dark theme if no preference is saved
+    return localStorage.getItem('theme') !== 'light';
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add('dark-theme');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-theme');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   // Notifications State
   const [showNotifications, setShowNotifications] = useState(false);
   const [activeNotifTab, setActiveNotifTab] = useState('All');
   const notifRef = useRef(null);
-  const INITIAL_NOTIFICATIONS = [
-    { id: 1, type: 'Leads', title: 'New lead assigned: Rahul Sharma', desc: 'Rahul Sharma has inquired about the Dubai 5N/6D Package. Follow up before 4 PM.', time: '11:27 AM, Today', badge: 'New', iconBg: 'bg-blue-100', iconColor: 'text-blue-600', isRead: false, link: '/crm/leads' },
-    { id: 2, type: 'Payments', title: 'Payment received for Kerala Tour', desc: '₹50,000 partial payment received from Neha Gupta. Verify the transaction details.', time: '10:00 AM, Today', badge: '', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', isRead: false, link: '/crm/leads' },
-    { id: 3, type: 'Alerts', title: 'Visa rejection for ID #1042', desc: 'Visa application for customer Amit Kumar has been rejected. Immediate action required.', time: '09:15 AM, Yesterday', badge: 'Alert', iconBg: 'bg-red-100', iconColor: 'text-red-600', isRead: true, link: '/crm/leads' }
-  ];
-
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
   const handleNotificationClick = (notif) => {
-    setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+    if (!notif.isRead) markAsRead(notif.id);
     setShowNotifications(false);
-    if (notif.link) {
-      navigate(notif.link);
+    
+    // In future, you can navigate based on notif.relatedEntity
+    if (notif.relatedEntity === 'LEAD') {
+      navigate('/crm/leads');
     }
   };
 
   const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    markAllAsRead();
   };
 
-  const filteredNotifs = activeNotifTab === 'All' ? notifications : notifications.filter(n => n.type === activeNotifTab);
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // Maps backend data to frontend tab filters (assuming type is INFO/SUCCESS/WARNING)
+  const getTabFromType = (type) => {
+    if (type === 'INFO') return 'Leads';
+    if (type === 'SUCCESS') return 'Payments';
+    if (type === 'WARNING' || type === 'ERROR') return 'Alerts';
+    return 'All';
+  };
+
+  const filteredNotifs = activeNotifTab === 'All' 
+    ? notifications 
+    : notifications.filter(n => getTabFromType(n.type) === activeNotifTab);
+
+  const formatTime = (dateString) => {
+    const d = new Date(dateString);
+    return d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) + ', ' + d.toLocaleDateString();
+  };
+
+  const getIconStyles = (type) => {
+    switch (type) {
+      case 'SUCCESS': return { bg: 'bg-emerald-100', color: 'text-emerald-600' };
+      case 'WARNING': return { bg: 'bg-amber-100', color: 'text-amber-600' };
+      case 'ERROR': return { bg: 'bg-red-100', color: 'text-red-600' };
+      default: return { bg: 'bg-blue-100', color: 'text-blue-600' };
+    }
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -68,30 +107,33 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
 
   return (
     <>
-    <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm sticky top-0 z-10">
+    <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 shadow-sm sticky top-0 z-[60]">
       <div className="flex items-center gap-8">
         <div className="hidden sm:block">
           <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-            {getGreeting()}, {user?.name?.split(' ')[0] || 'Admin'}! <span className="text-2xl inline-block ml-1 hover:animate-bounce cursor-default">👋</span>
+            {getGreeting()}, <span className="font-extrabold underline decoration-2 underline-offset-4">{user?.name?.split(' ')[0] || 'Admin'}</span>! <span className="text-2xl inline-block ml-1 hover:animate-bounce cursor-default">👋</span>
           </h2>
-          <p className="text-sm text-slate-500 font-medium mt-0.5">Here's what's happening with your tours today.</p>
+          <p className="text-sm text-slate-700 font-medium mt-0.5">Here's what's happening with your tours today.</p>
         </div>
         
-        <div className="relative hidden md:block">
-          <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-          <input 
-            type="text" 
-            placeholder="Search anything..." 
-            className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all w-64"
-          />
-        </div>
+
       </div>
       
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4 sm:gap-6">
+        
+        {/* Theme Toggle */}
+        <button 
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className="relative p-2 text-slate-700 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors"
+          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+
         <div className="relative" ref={notifRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
-            className={`relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors ${showNotifications ? 'bg-slate-100' : ''}`}
+            className={`relative p-2 text-slate-700 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors ${showNotifications ? 'bg-slate-100' : ''}`}
           >
             <Bell size={20} />
             {unreadCount > 0 && (
@@ -102,7 +144,7 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-3 w-[360px] bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="absolute -right-14 sm:right-0 mt-3 w-[320px] sm:w-[360px] bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-200">
               {/* Header */}
               <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 bg-white">
                 <h3 className="font-bold text-slate-800 text-[15px]">Notifications</h3>
@@ -120,7 +162,7 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
                     className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-colors whitespace-nowrap ${
                       activeNotifTab === tab 
                         ? 'bg-blue-600 text-white shadow-sm' 
-                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                        : 'bg-white text-slate-800 border border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     {tab}
@@ -129,36 +171,38 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
               </div>
 
               {/* List */}
-              <div className="max-h-[380px] overflow-y-auto custom-scrollbar bg-slate-50/30">
+              <div className="max-h-[320px] overflow-y-auto custom-scrollbar bg-slate-50/30">
                 {filteredNotifs.length > 0 ? (
-                  filteredNotifs.map(notif => (
+                  filteredNotifs.map(notif => {
+                    const styles = getIconStyles(notif.type);
+                    return (
                     <div 
                       key={notif.id} 
                       onClick={() => handleNotificationClick(notif)}
-                      className={`p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors flex gap-4 cursor-pointer ${!notif.isRead ? 'bg-blue-50/30' : 'bg-white'}`}
+                      className={`p-3 border-b border-slate-100 hover:bg-slate-50 transition-colors flex gap-3 cursor-pointer ${!notif.isRead ? 'bg-blue-50/30' : 'bg-white'}`}
                     >
-                      <div className={`w-9 h-9 rounded-full ${notif.iconBg} ${notif.iconColor} flex items-center justify-center shrink-0`}>
-                        <AlertCircle size={18} />
+                      <div className={`w-7 h-7 rounded-full ${styles.bg} ${styles.color} flex items-center justify-center shrink-0 mt-0.5`}>
+                        <AlertCircle size={14} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h4 className="font-bold text-slate-800 text-[13px] leading-snug truncate pr-2">{notif.title}</h4>
-                          {notif.badge && (
-                            <span className="shrink-0 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-red-100 text-red-600">
-                              {notif.badge}
+                        <div className="flex items-start justify-between gap-2 mb-0.5">
+                          <h4 className="font-bold text-slate-800 text-[12px] leading-snug truncate pr-2">{notif.title}</h4>
+                          {!notif.isRead && (
+                            <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider uppercase bg-blue-100 text-blue-600">
+                              NEW
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500 leading-relaxed mb-2 line-clamp-2">{notif.desc}</p>
-                        <span className="text-[10px] font-medium text-slate-400">{notif.time}</span>
+                        <p className="text-[11px] text-slate-700 leading-relaxed mb-1 line-clamp-2">{notif.message}</p>
+                        <span className="text-[9px] font-medium text-slate-800">{formatTime(notif.createdAt)}</span>
                       </div>
                     </div>
-                  ))
+                  )})
                 ) : (
-                  <div className="p-8 text-center bg-white">
-                    <CheckCircle className="mx-auto text-slate-300 mb-2" size={32} />
-                    <p className="text-sm font-medium text-slate-600">All caught up!</p>
-                    <p className="text-xs text-slate-400 mt-1">No {activeNotifTab.toLowerCase()} notifications.</p>
+                  <div className="p-6 text-center bg-white">
+                    <CheckCircle className="mx-auto text-slate-300 mb-2" size={24} />
+                    <p className="text-xs font-medium text-slate-800">All caught up!</p>
+                    <p className="text-[10px] text-slate-800 mt-1">No {activeNotifTab.toLowerCase()} notifications.</p>
                   </div>
                 )}
               </div>
@@ -180,23 +224,23 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
             </div>
             <div className="hidden md:flex flex-col items-start text-left">
               <span className="text-sm font-semibold text-slate-800 leading-tight">{user?.name || 'User'}</span>
-              <span className="text-xs text-slate-500 leading-tight">{user?.role}</span>
+              <span className="text-xs text-slate-700 leading-tight">{user?.role}</span>
             </div>
-            <ChevronDown size={16} className="text-slate-400" />
+            <ChevronDown size={16} className="text-slate-800" />
           </button>
 
           {showDropdown && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-50">
               <div className="px-4 py-2 border-b border-slate-100 md:hidden">
                 <p className="text-sm font-semibold text-slate-800">{user?.name || 'User'}</p>
-                <p className="text-xs text-slate-500">{user?.role}</p>
+                <p className="text-xs text-slate-700">{user?.role}</p>
               </div>
               <button 
                 onClick={() => {
                   setShowDropdown(false);
                   setIsProfileModalOpen(true);
                 }}
-                className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                className="w-full text-left px-4 py-2 text-sm text-slate-800 hover:bg-slate-50 flex items-center gap-2"
               >
                 <UserIcon size={16} />
                 Edit Profile
