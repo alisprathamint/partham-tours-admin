@@ -88,7 +88,7 @@ const DestinationEditor = () => {
     uploadData.append('fieldname', 'destinationImage');
 
     try {
-      const res = await api.post('/upload', uploadData);
+      const res = await api.post('/upload?folder=destinations', uploadData);
       const result = res.data;
       
       if (result.success && result.file.url) {

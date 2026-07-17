@@ -243,9 +243,9 @@ const Dashboard = () => {
             // Won & Revenue
             if (['WON', 'BOOKING_CONFIRMED', 'PAYMENT_RECEIVED'].includes(l.status)) {
               wonDeals++;
-              // Simulating revenue from budget for now if real revenue isn't tracked
-              const budget = parseInt(l.budget?.replace(/[^0-9]/g, '')) || 0;
-              const dealRevenue = (budget || 50000); // fallback 50k if no budget
+              // Revenue comes from the finalized quotation price (priceRange)
+              const parsedPrice = parseInt(l.priceRange?.replace(/[^0-9]/g, '')) || 0;
+              const dealRevenue = parsedPrice || 0; 
               totalRevenue += dealRevenue;
 
               // Add to monthly chart data

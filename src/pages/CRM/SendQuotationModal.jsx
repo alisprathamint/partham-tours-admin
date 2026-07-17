@@ -103,7 +103,7 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
   const handlePrint = async () => {
     if (query && query.id && user) {
       try {
-        await api.put(`/crm/leads/${query.id}`, { status: 'PROPOSAL_SENT' });
+        await api.put(`/crm/leads/${query.id}`, { status: 'PROPOSAL_SENT', priceRange: finalPrice.toString() });
         if (selectedPkg) {
           const noteContent = `[Quotation Details] Sent Package: ${selectedPkg.name} | Price: ₹${finalPrice.toLocaleString('en-IN')} | Duration: ${selectedPkg.duration} | Travel Date: ${formData.travelDate}`;
           await api.post(`/crm/leads/${query.id}/notes`, { content: noteContent });
@@ -126,7 +126,7 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
   const handleWhatsApp = async () => {
     if (query && query.id && user) {
       try {
-        await api.put(`/crm/leads/${query.id}`, { status: 'PROPOSAL_SENT' });
+        await api.put(`/crm/leads/${query.id}`, { status: 'PROPOSAL_SENT', priceRange: finalPrice.toString() });
         if (selectedPkg) {
           const noteContent = `[Quotation Details] Sent Package: ${selectedPkg.name} | Price: ₹${finalPrice.toLocaleString('en-IN')} | Duration: ${selectedPkg.duration} | Travel Date: ${formData.travelDate}`;
           await api.post(`/crm/leads/${query.id}/notes`, { content: noteContent });

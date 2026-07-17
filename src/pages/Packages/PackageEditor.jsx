@@ -700,7 +700,7 @@ const PackageEditor = () => {
     uploadData.append('file', file);
 
     try {
-      const res = await api.post('/upload', uploadData);
+      const res = await api.post('/upload?folder=packages', uploadData);
       const data = res.data;
       if (data.success) {
         setFormData(prev => ({ ...prev, image: data.file.url }));
@@ -720,7 +720,7 @@ const PackageEditor = () => {
     });
 
     try {
-      const res = await api.post('/upload-multiple', uploadData);
+      const res = await api.post('/upload-multiple?folder=packages', uploadData);
       const data = res.data;
       if (data.success) {
         const newUrls = data.files.map(f => f.url);

@@ -68,6 +68,9 @@ const MyQueries = () => {
   const [destinations, setDestinations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('In Progress'); // 'In Progress', 'Quotation Sent', 'Booking Confirmed', 'Overall Leads'
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
   
   // Bulk Assign State
   const [selectedLeads, setSelectedLeads] = useState([]);
@@ -228,6 +231,10 @@ const MyQueries = () => {
     unAssigned: false
   });
   const [appliedFilters, setAppliedFilters] = useState({ ...filters });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, appliedFilters]);
 
   const fetchLeads = async () => {
     try {
@@ -398,6 +405,11 @@ const MyQueries = () => {
 
     return true;
   });
+
+  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentLeads = filteredLeads.slice(startIndex, endIndex);
 
   const handleApplyFilters = () => {
     setAppliedFilters({ ...filters });
@@ -680,7 +692,7 @@ const MyQueries = () => {
                 </td>
               </tr>
             ) : (
-              filteredLeads.map((lead, index) => {
+              currentLeads.map((lead, index) => {
                 const dateObj = new Date(lead.createdAt);
                 const dayStr = dateObj.toLocaleDateString('en-GB', { weekday: 'short' });
                 const dateOnlyStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -718,7 +730,7 @@ const MyQueries = () => {
                 const statusStyle = getStatusStyle(lead.status);
                 const statusLabel = getStatusLabel(lead.status);
                 
-                const isLast = index === filteredLeads.length - 1;
+                const isLast = index === currentLeads.length - 1;
 
                 return (
                  <tr 
@@ -735,10 +747,7 @@ const MyQueries = () => {
                   <td className="px-3.5 py-2 align-middle">
                     <div className="flex flex-col justify-center h-full">
                       <div className="font-bold text-slate-800 text-xs flex items-center gap-2 mb-0.5">
-                        <span 
-                          onClick={() => navigate(`/crm/queries/${lead.id}`, { state: { lead } })}
-                          className="cursor-pointer hover:text-blue-600 hover:underline"
-                        >
+                        <span className="hover:text-blue-600 hover:underline">
                           {lead.name}
                         </span>
                         {lead.isDuplicate && <span className="text-[9px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Dup</span>}
@@ -761,8 +770,7 @@ const MyQueries = () => {
                   </td>
                   <td className="px-3.5 py-2 align-middle">
                     <div 
-                      onClick={() => navigate(`/crm/queries/${lead.id}`, { state: { lead } })}
-                      className="flex flex-col justify-center h-full cursor-pointer p-1.5 -mx-1.5 rounded-lg transition-colors group hover:bg-slate-50 w-fit"
+                      className="flex flex-col justify-center h-full p-1.5 -mx-1.5 rounded-lg transition-colors group hover:bg-slate-50 w-fit"
                       title="Click to view full source details"
                     >
                       <div className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors uppercase tracking-wide text-[10.5px]">{lead.source || 'Website'}</div>
@@ -773,8 +781,7 @@ const MyQueries = () => {
                   </td>
                   <td className="px-3.5 py-2 text-xs text-slate-700 align-middle">
                     <div 
-                      onClick={() => navigate(`/crm/queries/${lead.id}`, { state: { lead } })}
-                      className="flex flex-col justify-center h-full cursor-pointer p-1.5 -mx-1.5 rounded-lg transition-colors group hover:bg-slate-50"
+                      className="flex flex-col justify-center h-full p-1.5 -mx-1.5 rounded-lg transition-colors group hover:bg-slate-50"
                       title="Click to view full requirements"
                     >
                       <div className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors text-xs">{lead.destination || 'Not Specified'}</div>
@@ -793,8 +800,7 @@ const MyQueries = () => {
                   </td>
                   <td className="px-3.5 py-2 align-middle">
                     <div 
-                      onClick={() => navigate(`/crm/queries/${lead.id}`, { state: { lead } })}
-                      className="text-slate-700 text-[11px] truncate max-w-[150px] cursor-pointer hover:text-blue-600 transition-colors group" 
+                      className="text-slate-700 text-[11px] truncate max-w-[150px] hover:text-blue-600 transition-colors group" 
                       title={lead.notes && lead.notes.length > 0 ? lead.notes[lead.notes.length - 1].content : ''}
                     >
                       {lead.notes && lead.notes.length > 0 
@@ -868,6 +874,70 @@ const MyQueries = () => {
           </tbody>
         </table>
         </div>
+
+        {/* Pagination Controls */}
+        {filteredLeads.length > itemsPerPage && (
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-slate-200 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-slate-300 text-xs font-semibold rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-xs font-semibold rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs text-slate-700">
+                  Showing <span className="font-semibold text-slate-800">{startIndex + 1}</span> to{' '}
+                  <span className="font-semibold text-slate-800">{Math.min(endIndex, filteredLeads.length)}</span> of{' '}
+                  <span className="font-semibold text-slate-800">{filteredLeads.length}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-300 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Previous</span>
+                    &larr;
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`relative inline-flex items-center px-3 py-1.5 border text-xs font-semibold ${
+                        currentPage === page
+                          ? 'z-10 bg-blue-50 border-blue-500 text-blue-600 font-bold'
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-300 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Next</span>
+                    &rarr;
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit Lead Modal */}

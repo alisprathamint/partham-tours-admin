@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Phone, MapPin, MessageCircle, FileText, Clock, IndianRupee, Search, CheckCircle2, ChevronDown } from 'lucide-react';
 import api from '../../api/axios';
 import SendQuotationModal from './SendQuotationModal';
 
 const ConfirmedQueries = () => {
+  const navigate = useNavigate();
   const { token, user } = useAuth();
   const [queries, setQueries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedQuotationQuery, setSelectedQuotationQuery] = useState(null);
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const fetchQueries = async () => {
     try {
@@ -62,6 +70,11 @@ const ConfirmedQueries = () => {
     q.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     q.phone.includes(searchQuery)
   );
+
+  const totalPages = Math.ceil(filteredQueries.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentQueries = filteredQueries.slice(startIndex, endIndex);
 
   if (isLoading) {
     return (
@@ -125,7 +138,7 @@ const ConfirmedQueries = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredQueries.map((query) => {
+                  currentQueries.map((query) => {
                     const latestNote = query.notes && query.notes.length > 0 
                       ? query.notes.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))[0] 
                       : null;
@@ -206,11 +219,11 @@ const ConfirmedQueries = () => {
                               <Phone size={14} />
                             </button>
                             <button 
-                              onClick={() => handleOpenQuotation(query)}
+                              onClick={() => navigate(`/crm/queries/${query.id}`, { state: { lead: query } })}
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition-colors text-[11px] font-medium shadow-sm ml-1"
                             >
                               <FileText size={14} />
-                              Quote Details
+                              View Full Profile
                             </button>
                           </div>
                         </td>
@@ -221,6 +234,70 @@ const ConfirmedQueries = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {filteredQueries.length > itemsPerPage && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-slate-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-slate-300 text-xs font-semibold rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-xs font-semibold rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs text-slate-700">
+                    Showing <span className="font-semibold text-slate-800">{startIndex + 1}</span> to{' '}
+                    <span className="font-semibold text-slate-800">{Math.min(endIndex, filteredQueries.length)}</span> of{' '}
+                    <span className="font-semibold text-slate-800">{filteredQueries.length}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-300 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Previous</span>
+                      &larr;
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`relative inline-flex items-center px-3 py-1.5 border text-xs font-semibold ${
+                          currentPage === page
+                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600 font-bold'
+                            : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-300 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Next</span>
+                      &rarr;
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       

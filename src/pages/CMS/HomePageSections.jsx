@@ -93,7 +93,7 @@ const HomePageSections = () => {
 
   const toggleItem = (section, index) => {
     const key = `${section}-${index}`;
-    setExpandedItems(prev => ({ ...prev, [key]: !prev[key] }));
+    setExpandedItems(prev => ({ ...prev, [key]: prev[key] === false ? true : false }));
   };
 
   const isItemExpanded = (section, index) => {
@@ -177,7 +177,8 @@ const HomePageSections = () => {
     data.append('file', file);
 
     try {
-      const res = await api.post('/upload', data);
+      const folderName = activeTab || 'general';
+      const res = await api.post(`/upload?folder=${folderName}`, data);
       const result = res.data;
       
       if (result.success && result.file.url) {
@@ -284,7 +285,7 @@ const HomePageSections = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl shadow-blue-100/40 border border-slate-200/60 overflow-hidden flex flex-col lg:flex-row min-h-[700px]">
+      <div className="bg-white rounded-2xl shadow-xl shadow-blue-100/40 border border-slate-200/60 overflow-hidden flex flex-col lg:flex-row min-h-[500px] lg:h-[calc(100vh-220px)]">
         {/* Vertical Tabs */}
         <div className="w-full lg:w-64 bg-slate-50/50 border-b lg:border-b-0 lg:border-r border-slate-200/60 flex-shrink-0 p-3">
           <div className="flex flex-row lg:flex-col p-3 gap-1 overflow-x-auto lg:overflow-visible">

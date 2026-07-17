@@ -110,8 +110,16 @@ const GeneralContent = () => {
     data.append('file', file);
 
     try {
-      // In production, adjust token passing if required by backend. Assuming /api/upload is public or handled
-      const res = await api.post('/upload', data);
+      let folderName = 'general';
+      if (uploadingField?.fieldName) {
+        const fieldLower = uploadingField.fieldName.toLowerCase();
+        if (fieldLower.includes('logo') || fieldLower.includes('favicon')) {
+          folderName = 'logos';
+        } else if (fieldLower.includes('about')) {
+          folderName = 'about';
+        }
+      }
+      const res = await api.post(`/upload?folder=${folderName}`, data);
       const result = res.data;
       
       if (result.success && result.file.url) {
