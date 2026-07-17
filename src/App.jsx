@@ -9,8 +9,10 @@ import PackageEditor from './pages/Packages/PackageEditor';
 import DestinationList from './pages/Destinations/DestinationList';
 import DestinationEditor from './pages/Destinations/DestinationEditor';
 import Login from './pages/Auth/Login';
+import CustomerProfile from './pages/CRM/CustomerProfile';
 import LeadsList from './pages/Leads/LeadsList';
 import LeadsPool from './pages/CRM/LeadsPool';
+import MyQueries from './pages/CRM/MyQueries';
 import QueriesPipeline from './pages/CRM/QueriesPipeline';
 import TeamPipeline from './pages/CRM/TeamPipeline';
 import ConfirmedQueries from './pages/CRM/ConfirmedQueries';
@@ -64,6 +66,8 @@ const AppRoutes = () => {
           
           {/* CRM Routes */}
           <Route path="crm/leads" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><LeadsPool /></ProtectedRoute>} />
+          <Route path="crm/queries/:id" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><CustomerProfile /></ProtectedRoute>} />
+          <Route path="crm/my-queries" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><MyQueries /></ProtectedRoute>} />
           <Route path="crm/queries" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES']}><QueriesPipeline /></ProtectedRoute>} />
           <Route path="crm/team-pipeline" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER']}><TeamPipeline /></ProtectedRoute>} />
           <Route path="crm/confirmed-queries" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER']}><ConfirmedQueries /></ProtectedRoute>} />

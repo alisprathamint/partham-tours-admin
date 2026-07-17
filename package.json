@@ -12,8 +12,10 @@
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
     "axios": "^1.18.1",
+    "date-fns": "^4.4.0",
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
+    "react-date-range": "^2.0.1",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1",
     "recharts": "^3.9.2",

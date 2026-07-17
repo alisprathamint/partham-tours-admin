@@ -24,8 +24,9 @@ const Sidebar = ({ isOpen }) => {
       icon: <FileText size={20} />,
       roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES'],
       subItems: [
-        { title: 'Leads Pool', path: '/crm/leads' },
-        { title: 'My Queries', path: '/crm/queries' },
+        { title: 'Leads List', path: '/crm/leads' },
+        { title: 'My Queries', path: '/crm/my-queries' },
+        // { title: 'Queries Pipeline', path: '/crm/queries' },
         { title: 'Team Pipeline', path: '/crm/team-pipeline', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] },
         { title: 'Confirmed Queries', path: '/crm/confirmed-queries', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] }
       ]
@@ -195,7 +196,7 @@ const Sidebar = ({ isOpen }) => {
         onMouseLeave={handleMouseLeave}
       >
         {/* Logo Section */}
-        <div className="border-b border-slate-100 flex items-center h-[72px] px-6 relative overflow-hidden flex-shrink-0 menu-item-gpu">
+        <div className="border-b border-slate-200 flex items-center h-20 px-6 relative overflow-hidden flex-shrink-0 menu-item-gpu">
           <div className="flex items-center w-full">
             <span className="flex-shrink-0 transition-transform duration-300 hover:scale-105">
               <img src="/assets/logos/P Logo.svg" alt="Pratham Tours" className="w-8 h-8 object-contain" />

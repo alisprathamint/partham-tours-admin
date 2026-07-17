@@ -83,11 +83,31 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
 
   const finalPrice = Math.max(0, parseInt(formData.sellingPrice || '0') - parseInt(formData.discount || '0'));
 
+  const getPdfUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    
+    const origin = window.location.origin;
+    let frontendOrigin = origin;
+    if (origin.includes('5173')) {
+      frontendOrigin = origin.replace('5173', '3000');
+    } else if (origin.includes('5174')) {
+      frontendOrigin = origin.replace('5174', '3000');
+    } else if (origin.includes('5175')) {
+      frontendOrigin = origin.replace('5175', '3000');
+    } else if (origin.includes('admin.')) {
+      frontendOrigin = origin.replace('admin.', '');
+    }
+    return `${frontendOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
   const handlePrint = async () => {
-    // Automation: Update status to PROPOSAL_SENT
     if (query && query.id && user) {
       try {
         await api.put(`/crm/leads/${query.id}`, { status: 'PROPOSAL_SENT' });
+        if (selectedPkg) {
+          const noteContent = `[Quotation Details] Sent Package: ${selectedPkg.name} | Price: ₹${finalPrice.toLocaleString('en-IN')} | Duration: ${selectedPkg.duration} | Travel Date: ${formData.travelDate}`;
+          await api.post(`/crm/leads/${query.id}/notes`, { content: noteContent });
+        }
         if (onStatusUpdate) {
           onStatusUpdate(query.id, 'PROPOSAL_SENT');
         }
@@ -95,14 +115,22 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
         console.error('Auto status update failed', err);
       }
     }
-    window.print();
+    
+    if (selectedPkg?.pdfUrl) {
+      window.open(getPdfUrl(selectedPkg.pdfUrl), '_blank');
+    } else {
+      alert('No itinerary PDF available for this package. Please upload one in the Packages section.');
+    }
   };
 
   const handleWhatsApp = async () => {
-    // Automation: Update status to PROPOSAL_SENT
     if (query && query.id && user) {
       try {
         await api.put(`/crm/leads/${query.id}`, { status: 'PROPOSAL_SENT' });
+        if (selectedPkg) {
+          const noteContent = `[Quotation Details] Sent Package: ${selectedPkg.name} | Price: ₹${finalPrice.toLocaleString('en-IN')} | Duration: ${selectedPkg.duration} | Travel Date: ${formData.travelDate}`;
+          await api.post(`/crm/leads/${query.id}/notes`, { content: noteContent });
+        }
         if (onStatusUpdate) {
           onStatusUpdate(query.id, 'PROPOSAL_SENT');
         }
@@ -112,11 +140,20 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
     }
 
     const phone = formData.customerPhone.replace(/[^0-9]/g, '');
-    const text = `Hello ${formData.customerName},\n\nGreetings from Pratham Tours!\nHere are the quotation details for your upcoming trip to ${selectedPkg?.destination || 'your destination'}.\n\n*Total Price:* ₹${finalPrice.toLocaleString('en-IN')}\n*Travel Date:* ${formData.travelDate}\n\nPlease review the PDF document. Thank you!`;
+    
+    let text = `Hello ${formData.customerName},\n\nGreetings from Pratham Tours!\nHere are the quotation details for your upcoming trip to ${selectedPkg?.destination || 'your destination'}.\n\n*Total Price:* ₹${finalPrice.toLocaleString('en-IN')}\n*Travel Date:* ${formData.travelDate}\n`;
+    
+    if (selectedPkg?.pdfUrl) {
+      text += `\nYou can view your detailed day-wise itinerary PDF here:\n${getPdfUrl(selectedPkg.pdfUrl)}\n`;
+    } else {
+      text += `\nPlease review the attached document for more details.\n`;
+    }
+    
+    text += `\nThank you!`;
+    
     const encodedText = encodeURIComponent(text);
     window.open(`https://wa.me/${phone}?text=${encodedText}`, '_blank');
   };
-
   if (!isOpen) return null;
 
   if (!isOpen) return null;
@@ -125,11 +162,11 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
   // PRESERVED ORIGINAL CODE (Currently Unreachable)
   // ==========================================
   const modalContent = (
-    <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm print:hidden ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+    <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
       <div className={`bg-slate-50 w-full h-full md:w-[85vw] md:max-w-5xl md:h-[80vh] md:max-h-[750px] md:rounded-2xl shadow-2xl flex flex-col overflow-hidden relative border border-slate-300 ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
         
         {/* Modal Header */}
-        <div className="px-5 py-3 bg-white border-b border-slate-200 flex justify-between items-center z-10 flex-shrink-0">
+        <div className="px-5 py-3 bg-white border-b border-slate-200 flex justify-between items-center z-10 flex-shrink-0 print:hidden">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
               <PackageIcon size={18} />
@@ -151,7 +188,7 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
         <div className="flex-1 flex overflow-hidden">
           
           {/* Left Panel: Edit Form */}
-          <div className="w-[320px] bg-white border-r border-slate-200 overflow-y-auto p-5 flex flex-col space-y-5">
+          <div className="w-[320px] bg-white border-r border-slate-200 overflow-y-auto p-5 flex flex-col space-y-5 print:hidden">
             
             {/* Step 1: Select Master Package */}
             <div>
@@ -275,168 +312,38 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
           </div>
 
           {/* Right Panel: Live PDF Preview */}
-          <div className="flex-1 bg-slate-200/60 overflow-y-auto flex justify-center p-6 relative">
+          <div className="flex-1 bg-slate-200/60 overflow-hidden flex justify-center p-6 relative">
             {!selectedPkg ? (
               <div className="flex flex-col items-center justify-center text-slate-800 h-full">
                 <div className="w-24 h-32 bg-white rounded shadow-sm border border-slate-200 opacity-50 flex items-center justify-center">
                   <FileTextIcon />
                 </div>
-                <p className="mt-3 text-sm font-medium">PDF Preview will appear here</p>
+                <p className="mt-3 text-sm font-medium">Select a package to view its Itinerary</p>
+              </div>
+            ) : selectedPkg.pdfUrl ? (
+              <div className="w-full h-full max-w-4xl bg-white shadow-xl rounded-xl border border-slate-300 overflow-hidden flex flex-col">
+                 <div className="bg-slate-800 text-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wider flex justify-between items-center">
+                   <span>Itinerary Preview</span>
+                   <span className="text-slate-400 font-normal">{selectedPkg.name}</span>
+                 </div>
+                 <iframe 
+                   src={getPdfUrl(selectedPkg.pdfUrl)} 
+                   className="w-full h-full flex-1"
+                   title="Package Itinerary PDF"
+                 />
               </div>
             ) : (
-              <div className="origin-top transform scale-[0.7] sm:scale-[0.8] xl:scale-[0.9] transition-transform">
-                <div 
-                  id="pdf-preview-container"
-                  ref={printRef}
-                  className="bg-white shadow-2xl w-[21cm] h-[29.7cm] p-10 flex flex-col relative shrink-0"
-                >
-                {/* Watermark/Background Decor (Optional) */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-bl-full -z-10 opacity-50"></div>
-
-                {/* PDF Header */}
-                <div className="flex justify-between items-start border-b-2 border-blue-600 pb-6 mb-8">
-                  <div>
-                    <h1 className="text-3xl font-black text-blue-700 tracking-tight">PRATHAM TOURS</h1>
-                    <p className="text-sm text-slate-700 font-medium mt-1">Make your travel dream true</p>
-                    <div className="text-[10px] text-slate-700 mt-2 space-y-0.5">
-                      <p>123 Travel Square, Business District</p>
-                      <p>Mumbai, Maharashtra 400001</p>
-                      <p>+91 98765 43210 | info@prathamtours.com</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-widest">Quotation</h2>
-                    <p className="text-xs text-slate-700 mt-1">Ref: PT-{Math.floor(1000 + Math.random() * 9000)}</p>
-                    <p className="text-xs text-slate-700">Date: {new Date().toLocaleDateString('en-GB')}</p>
-                    <p className="text-xs text-slate-700 font-bold mt-2 bg-amber-100 text-amber-800 inline-block px-2 py-0.5 rounded">
-                      Valid Till: {new Date(formData.validity).toLocaleDateString('en-GB')}
-                    </p>
-                  </div>
+              <div className="flex flex-col items-center justify-center text-slate-800 h-full">
+                <div className="w-24 h-32 bg-white rounded shadow-sm border border-slate-200 opacity-50 flex items-center justify-center">
+                  <FileTextIcon />
                 </div>
-
-                {/* Customer Info */}
-                <div className="mb-8 grid grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="text-xs font-bold text-blue-600 uppercase mb-2 border-b border-blue-100 pb-1">Prepared For</h3>
-                    <p className="font-bold text-slate-800 text-lg">{formData.customerName || 'Customer Name'}</p>
-                    <p className="text-sm text-slate-800">{formData.customerPhone || '+91 XXXXX XXXXX'}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-blue-600 uppercase mb-2 border-b border-blue-100 pb-1">Trip Details</h3>
-                    <div className="grid grid-cols-2 gap-y-2 text-sm">
-                      <span className="text-slate-700">Destination:</span>
-                      <span className="font-semibold text-slate-800">{selectedPkg.location || 'N/A'}</span>
-                      <span className="text-slate-700">Travel Date:</span>
-                      <span className="font-semibold text-slate-800">{formData.travelDate ? new Date(formData.travelDate).toLocaleDateString('en-GB') : 'TBD'}</span>
-                      <span className="text-slate-700">Duration:</span>
-                      <span className="font-semibold text-slate-800">{selectedPkg.duration || 'N/A'}</span>
-                      <span className="text-slate-700">Passengers:</span>
-                      <span className="font-semibold text-slate-800">{formData.pax}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Package Main Area */}
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-8">
-                  <h3 className="text-xl font-bold text-slate-800 mb-2">{selectedPkg.name}</h3>
-                  <p className="text-sm text-slate-800 leading-relaxed">
-                    {selectedPkg.description || 'Enjoy a wonderful vacation with our carefully curated tour package featuring the best accommodations, guided tours, and unforgettable experiences.'}
-                  </p>
-                </div>
-
-                {/* Inclusions (Mock Data for preview) */}
-                <div className="mb-8">
-                  <h3 className="text-sm font-bold text-blue-600 uppercase mb-3 border-b border-blue-100 pb-1">Package Includes</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {['Hotel Accommodation', 'Daily Breakfast', 'Airport Transfers', 'Sightseeing Tours', 'Local Guide', 'Taxes & Fees'].map((inc, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm text-slate-700">
-                        <CheckCircle2 size={14} className="text-emerald-500" /> {inc}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Spacer to push pricing to bottom */}
-                <div className="flex-1"></div>
-
-                {/* Pricing Table */}
-                <div className="border border-slate-300 rounded-lg overflow-hidden mb-8">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-100 border-b border-slate-300">
-                      <tr>
-                        <th className="text-left py-3 px-4 font-bold text-slate-700">Description</th>
-                        <th className="text-right py-3 px-4 font-bold text-slate-700">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      <tr>
-                        <td className="py-3 px-4 text-slate-800 font-medium">Package Cost ({formData.pax})</td>
-                        <td className="py-3 px-4 text-right text-slate-800">₹ {parseInt(formData.sellingPrice || 0).toLocaleString('en-IN')}</td>
-                      </tr>
-                      {parseInt(formData.discount || 0) > 0 && (
-                        <tr>
-                          <td className="py-3 px-4 text-emerald-600 font-medium">Special Discount</td>
-                          <td className="py-3 px-4 text-right text-emerald-600">- ₹ {parseInt(formData.discount || 0).toLocaleString('en-IN')}</td>
-                        </tr>
-                      )}
-                      <tr className="bg-slate-800 text-white text-lg">
-                        <td className="py-4 px-4 font-bold">Total Amount Payable</td>
-                        <td className="py-4 px-4 text-right font-black">₹ {finalPrice.toLocaleString('en-IN')}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Footer Notes */}
-                <div className="text-[10px] text-slate-700 border-t border-slate-200 pt-4 flex justify-between">
-                  <div>
-                    <p className="font-bold text-slate-700 mb-1">Terms & Conditions:</p>
-                    <p>1. 50% advance payment required for confirmation.</p>
-                    <p>2. Flight fares are subject to change until ticketed.</p>
-                    <p>3. Standard cancellation policies apply.</p>
-                  </div>
-                  <div className="text-right flex flex-col justify-end">
-                    <p className="font-bold text-blue-700">Pratham Tours</p>
-                    <p>Authorized Signatory</p>
-                  </div>
-                </div>
-              </div>
+                <p className="mt-3 text-sm font-medium">No PDF uploaded for this package</p>
+                <p className="text-xs text-slate-500 mt-1">Please add a PDF URL in the Packages section.</p>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* CSS For Printing ONLY the PDF container */}
-      <style>{`
-        @media print {
-          @page {
-            size: A4;
-            margin: 0;
-          }
-          body * {
-            visibility: hidden;
-          }
-          /* Make sure the modal doesn't block printing */
-          .fixed.inset-0 {
-            position: absolute !important;
-            background: transparent !important;
-          }
-          #pdf-preview-container, #pdf-preview-container * {
-            visibility: visible;
-          }
-          #pdf-preview-container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 210mm;
-            height: 297mm;
-            box-shadow: none !important;
-            border: none !important;
-            padding: 20mm !important; /* Adjust print margins */
-          }
-        }
-      `}</style>
     </div>
   );
 

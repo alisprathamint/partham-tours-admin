@@ -1,15 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
   Users, MessageCircle, CheckCircle, TrendingUp,
   Clock, PhoneCall, Activity, IndianRupee, MapPin, 
-  FileText, XCircle, ChevronRight, Trophy
+  FileText, XCircle, ChevronRight, Trophy, Calendar, ChevronDown, MessageSquare, CheckCircle2
 } from 'lucide-react';
 import { 
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import api from '../../api/axios';
+import { DateRangePicker, createStaticRanges } from 'react-date-range';
+import 'react-date-range/dist/styles.css'; 
+import 'react-date-range/dist/theme/default.css';
+import { addDays, subDays, startOfYear } from 'date-fns';
+
+const customStaticRanges = createStaticRanges([
+  {
+    label: 'Today',
+    range: () => ({ startDate: new Date(), endDate: new Date() })
+  },
+  {
+    label: 'Yesterday',
+    range: () => ({ startDate: subDays(new Date(), 1), endDate: subDays(new Date(), 1) })
+  },
+  {
+    label: 'Last 7 Days',
+    range: () => ({ startDate: subDays(new Date(), 6), endDate: new Date() })
+  },
+  {
+    label: 'Last 15 Days',
+    range: () => ({ startDate: subDays(new Date(), 14), endDate: new Date() })
+  },
+  {
+    label: 'Last 30 Days',
+    range: () => ({ startDate: subDays(new Date(), 29), endDate: new Date() })
+  },
+  {
+    label: 'This Year',
+    range: () => ({ startDate: startOfYear(new Date()), endDate: new Date() })
+  },
+  {
+    label: 'Maximum',
+    range: () => ({ startDate: new Date('2020-01-01'), endDate: new Date() })
+  }
+]);
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -20,12 +55,14 @@ const Dashboard = () => {
     newLeadsToday: 0,
     pendingQuotations: 0,
     activeQueries: 0,
+    wonDeals: 0,
     lostDeals: 0,
     conversionRate: 0,
     destinations: [],
     activities: [],
     chartData: [],
     leaderboard: [],
+    sources: [],
   });
 
   const [followUps, setFollowUps] = useState({
@@ -37,6 +74,54 @@ const Dashboard = () => {
   const [activeFollowUpTab, setActiveFollowUpTab] = useState('today');
   const [chartFilter, setChartFilter] = useState('6months');
   const [isLoading, setIsLoading] = useState(true);
+  const [branchFilter, setBranchFilter] = useState('All');
+  const [branches, setBranches] = useState([]);
+  const [dateFilter, setDateFilter] = useState('today');
+  const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
+  const branchDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutsideBranch = (event) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target)) {
+        setIsBranchDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutsideBranch);
+    return () => document.removeEventListener("mousedown", handleClickOutsideBranch);
+  }, []);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isClosingDatePicker, setIsClosingDatePicker] = useState(false);
+  const datePickerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+        if (showDatePicker && !isClosingDatePicker) {
+          handleCloseDatePicker();
+        }
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showDatePicker, isClosingDatePicker]);
+  
+  const handleCloseDatePicker = () => {
+    setIsClosingDatePicker(true);
+    setTimeout(() => {
+      setShowDatePicker(false);
+      setIsClosingDatePicker(false);
+    }, 250);
+  };
+
+  const [dateRange, setDateRange] = useState([
+    {
+      startDate: new Date(),
+      endDate: addDays(new Date(), 7),
+      key: 'selection'
+    }
+  ]);
 
   // Parse Date string without time safely
   const getDateOnly = (dateStr) => {
@@ -45,13 +130,58 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const res = await api.get('/branches');
+        if (res.data.success) {
+          setBranches(res.data.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching branches:', error);
+      }
+    };
+    if (user) fetchBranches();
+  }, [user]);
+
+  useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const res = await api.get('/crm/leads');
         const data = res.data;
         
         if (data.success) {
-          const leads = data.data || [];
+          let leads = data.data || [];
+          
+          // Apply Branch Filter
+          if (branchFilter !== 'All') {
+            leads = leads.filter(l => l.branchId === parseInt(branchFilter));
+          }
+          
+          // Apply Date Filter
+          let startDate = null;
+          let endDate = null;
+          
+          if (dateFilter === 'today') {
+            startDate = new Date(); startDate.setHours(0,0,0,0);
+            endDate = new Date(); endDate.setHours(23,59,59,999);
+          } else if (dateFilter === 'weekly') {
+            startDate = new Date(); startDate.setDate(startDate.getDate() - 7); startDate.setHours(0,0,0,0);
+            endDate = new Date(); endDate.setHours(23,59,59,999);
+          } else if (dateFilter === 'monthly') {
+            startDate = new Date(); startDate.setMonth(startDate.getMonth() - 1); startDate.setHours(0,0,0,0);
+            endDate = new Date(); endDate.setHours(23,59,59,999);
+          } else if (dateFilter === 'custom') {
+            startDate = new Date(dateRange[0].startDate); startDate.setHours(0,0,0,0);
+            endDate = new Date(dateRange[0].endDate); endDate.setHours(23,59,59,999);
+          }
+          
+          if (startDate && endDate) {
+            leads = leads.filter(l => {
+              const leadDate = new Date(l.createdAt);
+              return leadDate >= startDate && leadDate <= endDate;
+            });
+          }
+          
           const todayDate = new Date().toISOString().split('T')[0];
 
           // 1. Calculate KPI Metrics
@@ -63,6 +193,7 @@ const Dashboard = () => {
           let lostDeals = 0;
           
           const destCount = {};
+          const sourceCount = {};
           const activitiesRaw = [];
 
           // Initialize Chart based on filter
@@ -94,8 +225,8 @@ const Dashboard = () => {
           }
 
           leads.forEach(l => {
-            // New Leads Today
-            if (l.type === 'LEAD' && getDateOnly(l.createdAt) === todayDate) {
+            // New Leads
+            if (l.type === 'LEAD') {
               newLeadsToday++;
             }
             
@@ -138,26 +269,61 @@ const Dashboard = () => {
               destCount[l.destination] = (destCount[l.destination] || 0) + 1;
             }
 
-            // Activity timeline mock based on createdAt
+            // Source mapping
+            if (l.source) {
+              sourceCount[l.source] = (sourceCount[l.source] || 0) + 1;
+            }
+
+            // We will aggregate all activities later after the loop
+
+            // (Mock won logic removed)
+          });
+
+          // Aggregate Real Activities
+          leads.forEach(l => {
+            // Creation
             activitiesRaw.push({
               id: `act_${l.id}_created`,
-              title: `New lead added: ${l.name}`,
-              desc: `Destination: ${l.destination || 'Not specified'}`,
+              type: 'create',
+              title: `New ${l.type === 'LEAD' ? 'Lead' : 'Query'}`,
+              name: l.name,
+              desc: `Destination: ${l.destination || 'N/A'} • Pax: ${l.pax || 'TBD'}`,
               date: new Date(l.createdAt),
-              type: 'lead'
+              user: l.assignedTo?.name || 'Unassigned',
             });
 
-            // Activity timeline mock for WON status
+            // Status Changes (Won/Confirmed)
             if (['WON', 'BOOKING_CONFIRMED', 'PAYMENT_RECEIVED'].includes(l.status)) {
               activitiesRaw.push({
                 id: `act_${l.id}_won`,
-                title: `Deal Won: ${l.name}`,
-                desc: `Revenue added to pipeline`,
+                type: 'won',
+                title: 'Deal Closed',
+                name: l.name,
+                desc: `Status: ${l.status.replace('_', ' ')}`,
                 date: new Date(l.updatedAt || l.createdAt),
-                type: 'won'
+                user: l.assignedTo?.name || 'Unassigned',
+              });
+            }
+
+            // Notes / Remarks
+            if (l.notes && Array.isArray(l.notes)) {
+              l.notes.forEach(note => {
+                activitiesRaw.push({
+                  id: `act_note_${note.id}`,
+                  type: 'note',
+                  title: 'Remark Added',
+                  name: l.name,
+                  desc: `"${note.content.length > 50 ? note.content.substring(0, 50) + '...' : note.content}"`,
+                  date: new Date(note.createdAt),
+                  user: l.assignedTo?.name || 'Unassigned',
+                });
               });
             }
           });
+
+          // Sort by date descending and take top 15
+          activitiesRaw.sort((a, b) => b.date - a.date);
+          const recentActivities = activitiesRaw.slice(0, 15);
 
           // Calculations
           const totalQueries = activeQueries + wonDeals + lostDeals;
@@ -171,7 +337,6 @@ const Dashboard = () => {
             return key ? destCount[key] : 0;
           };
 
-          // Static Top Destinations with Dynamic live counts
           const destinations = [
             { name: "Vietnam", count: getDestCount("Vietnam") },
             { name: "Sikkim", count: getDestCount("Sikkim") },
@@ -179,6 +344,10 @@ const Dashboard = () => {
             { name: "Kerala", count: getDestCount("Kerala") },
             { name: "Bhutan", count: getDestCount("Bhutan") }
           ];
+
+          const sources = Object.entries(sourceCount)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
 
           // Follow-ups Categorization
           const overdue = [];
@@ -246,12 +415,14 @@ const Dashboard = () => {
             newLeadsToday,
             pendingQuotations,
             activeQueries,
+            wonDeals,
             lostDeals,
             conversionRate,
             destinations,
-            activities: activitiesRaw.sort((a, b) => b.date - a.date).slice(0, 8),
+            activities: recentActivities,
             chartData: months,
-            leaderboard: leaderboardData
+            leaderboard: leaderboardData,
+            sources
           });
         }
       } catch (err) {
@@ -262,7 +433,7 @@ const Dashboard = () => {
     };
 
     if (user) fetchDashboardData();
-  }, [user, chartFilter]);
+  }, [user, chartFilter, branchFilter, dateFilter, dateRange]);
 
   // Format currency
   const formatMoney = (amount) => {
@@ -293,44 +464,128 @@ const Dashboard = () => {
   return (
     <div className="max-w-7xl mx-auto pb-10 animate-in fade-in duration-300">
       
+      {/* Top Filter Bar */}
+      <div className="flex justify-end mb-6">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative" ref={branchDropdownRef}>
+            <button
+              onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
+              className="flex items-center justify-between w-[160px] bg-white border border-slate-200 text-slate-700 text-[13px] font-medium py-1.5 px-4 rounded-lg hover:border-slate-300 focus:outline-none shadow-sm transition-all"
+            >
+              <span className="truncate">
+                {branchFilter === 'All' ? 'All Branches' : branches.find(b => String(b.id) === String(branchFilter))?.name || 'All Branches'}
+              </span>
+              <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isBranchDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isBranchDropdownOpen && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 py-1">
+                <button
+                  onClick={() => { setBranchFilter('All'); setIsBranchDropdownOpen(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-[13px] font-medium transition-colors ${branchFilter === 'All' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
+                >
+                  All Branches
+                </button>
+                {branches.map(b => (
+                  <button
+                    key={b.id}
+                    onClick={() => { setBranchFilter(b.id); setIsBranchDropdownOpen(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-[13px] font-medium transition-colors ${String(branchFilter) === String(b.id) ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
+            {['today', 'weekly', 'monthly'].map(f => (
+              <button
+                key={f}
+                onClick={() => setDateFilter(f)}
+                className={`px-4 py-1 text-[13px] font-medium rounded-md capitalize transition-colors ${dateFilter === f ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                {f}
+              </button>
+            ))}
+            <div className="relative" ref={datePickerRef}>
+              <button
+                onClick={() => {
+                  if (showDatePicker) {
+                    handleCloseDatePicker();
+                  } else {
+                    setDateFilter('custom');
+                    setShowDatePicker(true);
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-4 py-1 text-[13px] font-medium rounded-md capitalize transition-colors ${dateFilter === 'custom' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                Custom <Calendar size={13} className={dateFilter === 'custom' ? 'text-white' : 'text-slate-400'} />
+              </button>
+              
+              {showDatePicker && dateFilter === 'custom' && (
+                <div className={`absolute top-full right-0 mt-2 z-50 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden custom-date-picker ${isClosingDatePicker ? 'animate-pop-up' : 'animate-pop-down'}`} style={{ width: 'max-content' }}>
+                  <DateRangePicker
+                    onChange={item => setDateRange([item.selection])}
+                    showSelectionPreview={true}
+                    moveRangeOnFirstSelection={false}
+                    months={2}
+                    ranges={dateRange}
+                    direction="horizontal"
+                    rangeColors={['#2563eb']}
+                    staticRanges={customStaticRanges}
+                    inputRanges={[]}
+                  />
+                  <div className="p-3 border-t border-slate-100 flex justify-end gap-2 bg-slate-50/80 backdrop-blur-sm">
+                    <button onClick={handleCloseDatePicker} className="px-5 py-2 text-[13px] font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-all">Cancel</button>
+                    <button onClick={handleCloseDatePicker} className="px-5 py-2 text-[13px] font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md hover:shadow-lg transition-all">Update</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 6-Grid KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
         <StatCard 
-          title="Total Revenue" 
-          value={formatMoney(stats.totalRevenue)} 
-          icon={IndianRupee} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
-          onClick={() => navigate('/crm/confirmed-queries')}
-        />
-        <StatCard 
-          title="New Leads Today" 
+          title="New Leads" 
           value={stats.newLeadsToday} 
           icon={Users} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
           subtitle="Recent additions"
           onClick={() => navigate('/crm/leads')}
         />
         <StatCard 
-          title="Pending Quotes" 
-          value={stats.pendingQuotations} 
-          icon={FileText} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
-          onClick={() => navigate('/crm/queries')}
-        />
-        <StatCard 
-          title="Active Queries" 
+          title="Queries" 
           value={stats.activeQueries} 
           icon={MessageCircle} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
           onClick={() => navigate('/crm/queries')}
         />
         <StatCard 
-          title="Conversion Rate" 
-          value={`${stats.conversionRate}%`} 
+          title="Top Lead Source" 
+          value={stats.sources && stats.sources.length > 0 ? stats.sources[0].name.charAt(0).toUpperCase() + stats.sources[0].name.slice(1).toLowerCase() : '-'} 
           icon={TrendingUp} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
-          onClick={() => navigate('/crm/team-pipeline')}
+          subtitle={stats.sources && stats.sources.length > 0 ? `${stats.sources[0].count} leads from this source` : 'No data'}
         />
         <StatCard 
-          title="Lost Deals" 
+          title="Confirmed Bookings" 
+          value={stats.wonDeals} 
+          icon={CheckCircle} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
+          onClick={() => navigate('/crm/confirmed-queries')}
+        />
+        <StatCard 
+          title="Lost Leads" 
           value={stats.lostDeals} 
           icon={XCircle} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
           onClick={() => navigate('/crm/team-pipeline')}
+        />
+        <StatCard 
+          title="Total Revenue" 
+          value={formatMoney(stats.totalRevenue)} 
+          icon={IndianRupee} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
+          onClick={() => navigate('/crm/confirmed-queries')}
         />
       </div>
 
@@ -347,14 +602,6 @@ const Dashboard = () => {
                   {chartFilter === '6months' ? 'Last 6 Months Performance' : 'Past 12 Months Performance'}
                 </p>
               </div>
-              <select 
-                className="bg-slate-50 border border-slate-200 text-xs rounded px-3 py-1.5 outline-none text-slate-800 font-medium cursor-pointer w-full sm:w-auto"
-                value={chartFilter}
-                onChange={(e) => setChartFilter(e.target.value)}
-              >
-                <option value="6months">Last 6 Months</option>
-                <option value="year">This Year</option>
-              </select>
             </div>
             
             <div className="flex-1 w-full mt-2" style={{ minHeight: '200px' }}>
@@ -460,75 +707,114 @@ const Dashboard = () => {
           </h3>
           
           {isLoading ? (
-            <div className="text-xs text-slate-800">Loading activities...</div>
+            <div className="flex justify-center items-center h-[300px] text-slate-500 text-sm font-medium">Loading activities...</div>
           ) : stats.activities.length === 0 ? (
-            <div className="text-xs text-slate-800">No recent activity.</div>
+            <div className="flex flex-col items-center justify-center h-[300px] text-slate-800 opacity-60">
+               <Activity size={32} className="mb-2" />
+               <p className="text-[10px] font-medium">No recent activities found.</p>
+            </div>
           ) : (
-            <div className="relative pl-3 border-l-2 border-slate-100 space-y-6">
-              {stats.activities.map((act) => (
-                <div key={act.id} className="relative pl-4">
-                  <div className={`absolute -left-[23px] top-0.5 w-3 h-3 rounded-full border-2 border-white ${
-                    act.type === 'won' ? 'bg-emerald-500' : 'bg-blue-500'
-                  }`}></div>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">{act.title}</h4>
-                      <p className="text-[10px] text-slate-700 mt-1">{act.desc}</p>
+            <div className="relative space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+              <div className="absolute top-0 bottom-0 left-[19px] w-0.5 bg-slate-100 z-0"></div>
+              
+              {stats.activities.map((act) => {
+                let icon, iconBg, iconColor;
+                if (act.type === 'create') {
+                  icon = <Users size={14} strokeWidth={2.5} />;
+                  iconBg = 'bg-blue-100 ring-4 ring-white';
+                  iconColor = 'text-blue-600';
+                } else if (act.type === 'won') {
+                  icon = <CheckCircle2 size={14} strokeWidth={2.5} />;
+                  iconBg = 'bg-emerald-100 ring-4 ring-white';
+                  iconColor = 'text-emerald-600';
+                } else if (act.type === 'note') {
+                  icon = <MessageSquare size={14} strokeWidth={2.5} />;
+                  iconBg = 'bg-amber-100 ring-4 ring-white';
+                  iconColor = 'text-amber-600';
+                }
+
+                // Calculate relative time (e.g., "2h ago", "Just now", "Yesterday")
+                const now = new Date();
+                const diffMs = now - act.date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMins / 60);
+                const diffDays = Math.floor(diffHours / 24);
+                let timeStr = "";
+                if (diffMins < 1) timeStr = "Just now";
+                else if (diffMins < 60) timeStr = `${diffMins}m ago`;
+                else if (diffHours < 24) timeStr = `${diffHours}h ago`;
+                else if (diffDays === 1) timeStr = "Yesterday";
+                else timeStr = `${diffDays}d ago`;
+
+                return (
+                  <div key={act.id} className="relative z-10 flex gap-4 p-3 hover:bg-slate-50 transition-colors rounded-xl border border-transparent hover:border-slate-100 cursor-default group">
+                    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${iconBg} ${iconColor} shadow-sm transition-transform group-hover:scale-110`}>
+                      {icon}
                     </div>
-                    <span className="text-[9px] font-bold text-slate-800 bg-slate-50 px-1.5 py-0.5 rounded">
-                      {act.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className="text-[13px] font-bold text-slate-800 leading-tight">
+                          {act.title}
+                        </h4>
+                        <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap bg-slate-100 px-2 py-0.5 rounded-full">
+                          {timeStr}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-blue-600 font-bold mt-0.5 truncate">
+                        {act.name}
+                      </p>
+                      <p className="text-[11.5px] text-slate-600 mt-1 line-clamp-2">
+                        {act.desc}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-500 font-medium">
+                        <div className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[8px] font-bold text-slate-700">
+                           {act.user.charAt(0).toUpperCase()}
+                        </div>
+                        {act.user}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Follow-ups (Spans 6) */}
+        {/* Lead Sources (Spans 6) */}
         <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col h-[400px]">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
-            <PhoneCall size={16} className="text-amber-500" />
-            Follow-ups
+          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-6">
+            <Users size={16} className="text-amber-500" />
+            Lead Sources
           </h3>
-          <div className="flex bg-slate-50 p-1 rounded-lg mb-4">
-            {['overdue', 'today', 'upcoming'].map(tab => (
-              <button 
-                key={tab}
-                onClick={() => setActiveFollowUpTab(tab)}
-                className={`flex-1 text-[10px] font-bold py-2 rounded-md capitalize transition-colors ${
-                  activeFollowUpTab === tab ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-700 hover:text-slate-700'
-                }`}
-              >
-                {tab} ({followUps[tab]?.length || 0})
-              </button>
-            ))}
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
-            {followUps[activeFollowUpTab].length === 0 ? (
+          <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
+            {stats.sources?.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-800 opacity-60">
                 <CheckCircle size={32} className="mb-2" />
-                <p className="text-[10px] font-medium">No {activeFollowUpTab} follow-ups!</p>
+                <p className="text-[10px] font-medium">No sources recorded yet!</p>
               </div>
             ) : (
-              followUps[activeFollowUpTab].map(lead => (
-                <div key={lead.id} className="flex gap-3 items-center p-3 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-slate-300 transition-all cursor-pointer">
-                  <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
-                    {lead.name.substring(0, 2).toUpperCase()}
+              stats.sources?.map((source, index) => {
+                const totalSources = stats.sources.reduce((sum, s) => sum + s.count, 0);
+                const percentage = totalSources > 0 ? Math.round((source.count / totalSources) * 100) : 0;
+                
+                return (
+                  <div key={index} className="flex flex-col gap-1.5 p-3 bg-slate-50/50 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                    <div className="flex justify-between items-end">
+                      <h4 className="font-bold text-slate-800 text-xs capitalize flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        {source.name.toLowerCase()}
+                      </h4>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-slate-800">{source.count} Leads</span>
+                        <span className="text-[10px] text-slate-500 font-medium ml-2">({percentage}%)</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden mt-1">
+                      <div className="bg-blue-500 h-full rounded-full transition-all duration-1000" style={{ width: `${percentage}%` }}></div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-slate-800 text-xs truncate">{lead.name}</h4>
-                    <p className="text-[10px] text-slate-700 truncate mt-0.5">{lead.destination || 'General'}</p>
-                  </div>
-                  <div className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 ${
-                    activeFollowUpTab === 'overdue' ? 'bg-red-50 text-red-600' :
-                    activeFollowUpTab === 'today' ? 'bg-amber-50 text-amber-600' :
-                    'bg-emerald-50 text-emerald-600'
-                  }`}>
-                    {getDateOnly(lead.next_followup)}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -537,9 +823,40 @@ const Dashboard = () => {
       </div>
       
       <style>{`
+        @keyframes popDown {
+          0% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes popUp {
+          0% { opacity: 1; transform: scale(1) translateY(0); }
+          100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+        }
+        .animate-pop-down {
+          animation: popDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          transform-origin: top right;
+        }
+        .animate-pop-up {
+          animation: popUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          transform-origin: top right;
+        }
+
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 20px; }
+        
+        /* DateRangePicker UI Enhancements */
+        .custom-date-picker .rdrDateDisplayWrapper { background-color: transparent; padding-bottom: 0; }
+        .custom-date-picker .rdrDateDisplayItem { box-shadow: none; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .custom-date-picker .rdrDateDisplayItemActive { border-color: #2563eb; }
+        .custom-date-picker .rdrDefinedRangesWrapper { border-right: 1px solid #e2e8f0; font-size: 13px; background: #fafafa; }
+        .custom-date-picker .rdrStaticRange { border-bottom: 1px solid #f1f5f9; background: transparent; }
+        .custom-date-picker .rdrStaticRange:hover .rdrStaticRangeLabel, 
+        .custom-date-picker .rdrStaticRangeSelected { background: #eff6ff; color: #2563eb; font-weight: 600; }
+        .custom-date-picker .rdrStaticRangeLabel { padding: 10px 20px; transition: all 0.2s ease; }
+        .custom-date-picker .rdrCalendarWrapper { color: #334155; font-size: 13px; }
+        .custom-date-picker .rdrMonthAndYearWrapper { padding-top: 15px; }
+        .custom-date-picker .rdrDayToday .rdrDayNumber span:after { background: #2563eb; }
+        .custom-date-picker .rdrDayNumber span { font-weight: 500; }
       `}</style>
     </div>
   );

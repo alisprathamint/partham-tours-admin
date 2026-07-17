@@ -17,8 +17,8 @@ const ConfirmedQueries = () => {
       const response = await api.get('/crm/leads');
       const data = response.data;
       if (data.success) {
-        // Filter only BOOKING_CONFIRMED and PAYMENT_RECEIVED
-        const confirmed = data.data.filter(q => q.status === 'BOOKING_CONFIRMED' || q.status === 'PAYMENT_RECEIVED');
+        // Filter only PAYMENT_RECEIVED and WON
+        const confirmed = data.data.filter(q => q.status === 'PAYMENT_RECEIVED' || q.status === 'WON');
         setQueries(confirmed);
       }
     } catch (err) {
