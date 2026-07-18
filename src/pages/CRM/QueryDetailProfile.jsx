@@ -1,13 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Minus, Plus, ChevronDown, Check, User, MessageSquare, Clock, Edit2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowLeft, Minus, Plus, ChevronDown, Check, User, MessageSquare, Clock, Edit2, X, FolderOpen, Upload } from 'lucide-react';
 import api from '../../api/axios';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
 import SendQuotationModal from './SendQuotationModal';
 import FollowUpModal from './FollowUpModal';
+import CustomerDocumentManager from './CustomerDocumentManager';
+import PassengerDocumentSection from './PassengerDocumentSection';
+import TravelerDetailsForm from './TravelerDetailsForm';
 
 const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) => {
+  const currentStatus = currentLead?.status || 'NEW';
+  const isInactive = currentStatus === 'LOST' || currentStatus === 'BOOKING_CONFIRMED' || currentStatus === 'WON' || currentStatus === 'PAYMENT_RECEIVED';
+
   const [isEditing, setIsEditing] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
+  const [showLostModal, setShowLostModal] = useState(false);
+  const [lostReason, setLostReason] = useState('');
   
   // Field-level inline editing states
   const [editingField, setEditingField] = useState(null);
@@ -81,22 +91,22 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
 
   const [openSteps, setOpenSteps] = useState({
     step1: true,
-    step2: true,
+    step2: false,
     step3: false,
     step4: false,
     step5: false
   });
 
   useEffect(() => {
-    const curStatus = currentLead.status || 'NEW';
+    // Always open Step 1 when page first loads — user starts their workflow from Step 1
     setOpenSteps({
-      step1: curStatus === 'NEW' || curStatus === 'IN_PROGRESS',
-      step2: curStatus === 'NEW' || curStatus === 'IN_PROGRESS',
-      step3: curStatus === 'PROPOSAL_SENT',
-      step4: curStatus === 'NEGOTIATION',
-      step5: curStatus === 'BOOKING_CONFIRMED' || curStatus === 'PAYMENT_RECEIVED'
+      step1: true,
+      step2: false,
+      step3: false,
+      step4: false,
+      step5: false
     });
-  }, [currentLead.status]);
+  }, [currentLead.id]);
 
   // Form states (copied from original profile for editing query details)
   const [adultsCount, setAdultsCount] = useState(currentLead.pax ? (parseInt(currentLead.pax) || 2) : 2);
@@ -159,11 +169,30 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleMarkAsLost = async () => {
-    if (!window.confirm("Are you sure you want to mark this query as LOST?")) return;
+  const handleMarkAsLost = () => {
+    setShowLostModal(true);
+  };
+
+  const submitMarkAsLost = async () => {
+    if (!lostReason.trim()) {
+      alert("A reason is required to mark the query as lost.");
+      return;
+    }
+    
     try {
-      const res = await api.put(`/crm/leads/${currentLead.id}`, { status: 'LOST' });
+      const res = await api.put(`/crm/leads/${currentLead.id || currentLead._id}`, { status: 'LOST' });
       if (res.data.success) {
+        // Also add the reason as a note
+        await api.post(`/crm/leads/${currentLead.id || currentLead._id}/notes`, {
+          content: `Marked as Lost. Reason: ${lostReason}`,
+          assignedTo: {
+            id: user?.id,
+            name: user?.name
+          }
+        });
+        
+        setShowLostModal(false);
+        setLostReason('');
         alert("Query marked as LOST successfully.");
         fetchLeadDetails();
       }
@@ -285,6 +314,9 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
             await api.post(`/crm/leads/${currentLead.id}/notes`, { content: remarkText });
           }
           alert(`Query successfully moved to stage: ${newStatus.replace('_', ' ')}`);
+          if (newStatus === 'BOOKING_CONFIRMED') {
+            setOpenSteps(prev => ({ ...prev, step5: true }));
+          }
           fetchLeadDetails();
         }
       } catch (err) {
@@ -294,12 +326,19 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
     };
 
     const isStep1Active = currentStatus === 'NEW' || currentStatus === 'IN_PROGRESS';
-    const isStep1Done = currentStatus !== 'NEW' && currentStatus !== 'IN_PROGRESS';
+    // Tick only when actual follow-up notes or tasks have been logged, not just status change
+    const hasFollowUpActivity = (currentLead.notes && currentLead.notes.length > 0) || (currentLead.tasks && currentLead.tasks.length > 0);
+    const isStep1Done = hasFollowUpActivity && currentStatus !== 'NEW';
 
-    const isStep2Active = currentStatus === 'NEW' || currentStatus === 'IN_PROGRESS';
+    const isStep2Active = currentStatus === 'IN_PROGRESS';
+    
     const isStep3Active = currentStatus === 'PROPOSAL_SENT';
     const isStep4Active = currentStatus === 'NEGOTIATION';
     const isStep5Active = currentStatus === 'BOOKING_CONFIRMED';
+    
+    const latestNote = currentLead.notes?.length > 0 
+      ? [...currentLead.notes].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))[0] 
+      : null;
 
     const quoteNotes = currentLead.notes?.filter(n => n.content?.includes('[Quotation Details]')) || [];
     const quotationsList = quoteNotes.map(note => {
@@ -415,6 +454,11 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
                     </span>
                   )}
                 </span>
+                {latestNote && (
+                  <span className="text-[10px] text-slate-400 truncate max-w-[200px] md:max-w-[300px] italic ml-2 hidden sm:block">
+                    - "{latestNote.content}"
+                  </span>
+                )}
                 {isStep1Active && <span className="w-2 h-2 rounded-full bg-violet-600 animate-ping"></span>}
               </div>
               <div className="text-slate-500">
@@ -424,10 +468,18 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
             {openSteps.step1 && (
               <div className="p-4 border-t border-slate-200 bg-white space-y-4">
                 <div className="flex justify-between items-center">
-                  <p className="text-[11.5px] text-slate-500 font-semibold">Schedule next follow-up and client interaction tasks</p>
+                  <div>
+                    <p className="text-[11.5px] text-slate-500 font-semibold">Schedule next follow-up and client interaction tasks</p>
+                    {latestNote && (
+                      <div className="mt-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <span className="font-bold text-slate-700">Latest Remark:</span> {latestNote.content}
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={() => setIsFollowUpModalOpen(true)}
-                    className="py-1.5 px-3 bg-violet-600 hover:bg-violet-755 text-white font-bold text-xs rounded-lg transition-all shadow-sm"
+                    disabled={isInactive}
+                    className={`py-1.5 px-3 font-bold text-xs rounded-lg transition-all shadow-sm shrink-0 ${isInactive ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-violet-600 hover:bg-violet-755 text-white'}`}
                   >
                     Schedule/Log Follow-Up
                   </button>
@@ -563,7 +615,21 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
             {openSteps.step3 && (
               <div className="p-4 border-t border-slate-200 bg-white space-y-4">
                 <div className="flex flex-col gap-2 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                  <p className="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Log Negotiation Note / Update</p>
+                  <div className="flex justify-between items-end mb-1">
+                    <p className="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Add Negotiation Note / Update</p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap mb-1">
+                    {['Asked for discount', 'Requested itinerary change', 'Finalizing price', 'Agreed on price', 'Hold / Thinking'].map(tpl => (
+                      <button
+                        key={tpl}
+                        type="button"
+                        onClick={() => setNegotiationNote(prev => prev ? `${prev} | ${tpl}: ` : `${tpl}: `)}
+                        className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 text-[10.5px] font-bold rounded-md transition-colors shadow-sm"
+                      >
+                        {tpl}
+                      </button>
+                    ))}
+                  </div>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -580,13 +646,16 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
                         await updateStage('NEGOTIATION', noteText);
                         setNegotiationNote('');
                       }}
+                      disabled={isInactive}
                       className={`py-1.5 px-4 font-bold text-xs rounded-lg transition-all ${
-                        isStep3Active
-                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
-                          : 'bg-slate-200 hover:bg-slate-300 text-slate-600'
+                        isInactive
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                          : isStep3Active
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                            : 'bg-slate-200 hover:bg-slate-300 text-slate-600'
                       }`}
                     >
-                      Log Negotiation
+                      Add Negotiation
                     </button>
                   </div>
                 </div>
@@ -653,60 +722,32 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
             </div>
             {openSteps.step4 && (
               <div className="p-4 border-t border-slate-200 bg-white space-y-4">
-                <div className="flex justify-between items-center flex-wrap gap-2.5">
-                  <p className="text-[11.5px] text-slate-500 font-semibold">Booking confirmation updates & payment status log</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => updateStage('BOOKING_CONFIRMED', '[System] Booking Confirmed & Closed.')}
-                      className={`py-1.5 px-4 font-bold text-xs rounded-lg transition-all ${
-                        isStep4Active
-                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
-                          : 'bg-slate-200 hover:bg-slate-300 text-slate-600'
-                      }`}
-                    >
-                      Confirm Booking
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (window.confirm("Confirm Booking & Mark Payment as Received?")) {
-                          await updateStage('BOOKING_CONFIRMED', '[System] Booking Confirmed. Payment Received successfully.');
-                        }
-                      }}
-                      className={`py-1.5 px-4 font-bold text-xs rounded-lg transition-all ${
-                        isStep4Active
-                          ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-755 hover:to-teal-755 text-white shadow-sm'
-                          : 'bg-slate-200 hover:bg-slate-300 text-slate-600'
-                      }`}
-                    >
-                      Payment Received & Confirm Booking
-                    </button>
-                  </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => updateStage('BOOKING_CONFIRMED', '[System] Booking Confirmed & Closed.')}
+                    className={`py-1.5 px-4 font-bold text-xs rounded-lg transition-all ${
+                      isStep4Active
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                        : 'bg-slate-200 hover:bg-slate-300 text-slate-600'
+                    }`}
+                  >
+                    Confirm Booking
+                  </button>
                 </div>
 
-                {bookingHistory.length === 0 ? (
-                  <div className="text-center py-6 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200 font-medium text-xs">
-                    No booking or payment updates logged yet.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                    <table className="min-w-full divide-y divide-slate-200 text-left text-xs font-semibold text-slate-700">
-                      <thead className="bg-slate-50 text-[10px] text-slate-500 uppercase tracking-wider">
-                        <tr>
-                          <th className="px-4 py-3 font-extrabold">Date & Time</th>
-                          <th className="px-4 py-3 font-extrabold">Confirmation Milestone</th>
-                          <th className="px-4 py-3 font-extrabold">Coordinator</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-slate-100">
-                        {bookingHistory.map((h, idx) => (
-                          <tr key={h.id === 'booking-fallback' ? `booking-fallback-${idx}` : h.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3.5 text-slate-900 font-bold w-40">{h.date}</td>
-                            <td className="px-4 py-3.5 text-slate-600">{h.details}</td>
-                            <td className="px-4 py-3.5 text-slate-600 w-32">{h.agent}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {isStep4Done && (
+                  <div className="mt-6">
+                    <TravelerDetailsForm 
+                      leadId={currentLead._id || currentLead.id}
+                      paxStr={currentLead.pax}
+                      passengerDetails={currentLead.passengerDetails}
+                      onDetailsSaved={() => fetchLeadDetails()}
+                    />
+                    <PassengerDocumentSection
+                      leadId={currentLead._id || currentLead.id}
+                      paxStr={currentLead.pax}
+                      passengerDetails={currentLead.passengerDetails}
+                    />
                   </div>
                 )}
               </div>
@@ -744,8 +785,62 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
             </div>
             {openSteps.step5 && (
               <div className="p-4 border-t border-slate-200 bg-white space-y-4">
-                <p className="text-[11.5px] text-slate-500 font-medium">Booking successfully completed, paid, and query successfully resolved.</p>
+                <p className="text-[11.5px] text-slate-500 font-medium">Finalize the query by verifying payment and uploading proof.</p>
                 
+                {currentStatus === 'BOOKING_CONFIRMED' && (
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-teal-50/50 p-4 rounded-xl border border-teal-100">
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-teal-800 mb-1">Payment Pending</p>
+                      <p className="text-[10px] text-teal-600">Please upload a payment screenshot/receipt and mark payment as received to finalize.</p>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm">
+                        <Upload size={14} className="text-blue-500" />
+                        <span>Upload Proof</span>
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*,.pdf"
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            if (file.size > 5 * 1024 * 1024) return alert('File size must be under 5MB');
+                            
+                            const formData = new FormData();
+                            formData.append('documentType', 'OTHER');
+                            formData.append('customDocumentName', 'Payment Proof');
+                            formData.append('file', file);
+                            
+                            try {
+                              const res = await api.post(`/crm/leads/${currentLead.id}/documents?folder=customer-documents`, formData, {
+                                headers: { 'Content-Type': 'multipart/form-data' }
+                              });
+                              if (res.data.success) {
+                                alert("Payment proof uploaded successfully!");
+                                await api.post(`/crm/leads/${currentLead.id}/notes`, { content: '[System] Payment proof document uploaded.' });
+                                fetchLeadDetails();
+                              }
+                            } catch (err) {
+                              alert("Upload failed");
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        onClick={async () => {
+                          if (window.confirm("Mark Payment as Received and Finalize Query?")) {
+                            await updateStage('PAYMENT_RECEIVED', '[System] Payment Received & Query Finalized.');
+                          }
+                        }}
+                        className="py-2 px-5 font-bold text-xs rounded-lg transition-all bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm flex items-center gap-2"
+                      >
+                        <Check size={14} /> Mark Payment Received
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="overflow-x-auto border border-slate-200 rounded-xl">
                   <table className="min-w-full divide-y divide-slate-200 text-left text-xs font-semibold text-slate-700">
                     <thead className="bg-slate-50 text-[10px] text-slate-500 uppercase tracking-wider">
@@ -807,45 +902,66 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
             <span className="text-xs bg-slate-700/60 text-slate-200 border border-slate-600/40 px-3 py-1 rounded-full font-bold">
               ID: #{currentLead.id}
             </span>
+            <button
+              onClick={() => setShowDocuments(prev => !prev)}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border transition-all ${
+                showDocuments
+                  ? 'bg-amber-500 text-white border-amber-400 shadow-sm shadow-amber-900/30'
+                  : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+              }`}
+            >
+              <FolderOpen size={13} />
+              Documents
+            </button>
           </div>
         </div>
 
-        <div className="px-6 py-5 bg-slate-50/50 border-b border-slate-100">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-2 relative">
-            <div className="hidden md:block absolute left-[10%] right-[10%] top-[25px] h-[3px] bg-slate-200 z-0">
-              <div 
-                className="h-full bg-blue-600 transition-all duration-500" 
-                style={{ width: `${(Math.max(0, currentStageIdx) / (stages.length - 1)) * 100}%` }}
-              />
-            </div>
-
+        <div className="px-6 py-6 bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-slate-100">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 relative">
             {stages.map((stage, idx) => {
-              const isActive = idx <= currentStageIdx;
+              const isActive = idx < currentStageIdx;
               const isCurrent = idx === currentStageIdx;
+              const isPending = idx > currentStageIdx;
+              
+              let containerClass = "bg-white border-slate-200 text-slate-500 opacity-70";
+              let iconClass = "bg-slate-100 text-slate-400";
+              let textClass = "text-slate-500";
+              
+              if (isActive) {
+                containerClass = "bg-white border-emerald-200 shadow-sm";
+                iconClass = "bg-emerald-500 text-white shadow-inner shadow-emerald-600";
+                textClass = "text-emerald-700 font-bold";
+              }
+              if (isCurrent) {
+                containerClass = "bg-gradient-to-br from-blue-600 to-indigo-700 border-transparent shadow-lg shadow-blue-200/50 ring-4 ring-blue-50/50 scale-[1.02] z-10";
+                iconClass = "bg-white/25 text-white shadow-inner shadow-black/10";
+                textClass = "text-white font-extrabold";
+              }
+
               return (
-                <div key={stage.key} className="flex flex-col items-center text-center z-10 w-full md:w-auto relative">
-                  <div 
-                    className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300 ${
-                      isCurrent 
-                        ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110' 
-                        : isActive 
-                          ? 'bg-blue-500 text-white' 
-                          : 'bg-white text-slate-400 border-2 border-slate-200'
-                    }`}
-                  >
-                    {isActive && !isCurrent ? <Check size={18} strokeWidth={3} /> : idx + 1}
-                  </div>
-                  <div className="mt-2">
-                    <p className={`text-[12px] font-bold tracking-wide uppercase ${isActive ? 'text-blue-700' : 'text-slate-500'}`}>
-                      {stage.label}
-                    </p>
-                    {isCurrent && (
-                      <span className="inline-block text-[9px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded-full mt-0.5 animate-pulse">
-                        Active Stage
+                <React.Fragment key={stage.key}>
+                  <div className={`flex-1 flex items-center gap-3 w-full md:w-auto p-3.5 rounded-2xl border transition-all duration-300 ${containerClass}`}>
+                    <div className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-sm transition-colors ${iconClass}`}>
+                      {isActive ? <Check size={18} strokeWidth={4} /> : idx + 1}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className={`text-[10px] font-black tracking-widest uppercase ${isCurrent ? 'text-blue-200' : 'text-slate-400'}`}>
+                        {isCurrent ? 'Current Phase' : `Step ${idx + 1}`}
                       </span>
-                    )}
+                      <span className={`text-xs uppercase tracking-wider leading-tight mt-0.5 ${textClass}`}>
+                        {stage.label}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                  
+                  {idx < stages.length - 1 && (
+                    <div className="hidden md:flex shrink-0 items-center justify-center px-1">
+                      <div className="w-6 h-[3px] rounded-full bg-slate-200 overflow-hidden relative">
+                         <div className={`absolute left-0 top-0 h-full transition-all duration-700 ease-out ${isActive ? 'w-full bg-emerald-400' : isCurrent ? 'w-1/2 bg-blue-400 animate-pulse' : 'w-0'}`} />
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
               );
             })}
           </div>
@@ -863,16 +979,24 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
             <div className="flex gap-2">
               <button 
                 onClick={handleMarkAsLost}
-                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-red-200 bg-red-50 text-red-650 hover:bg-red-100 transition-all"
+                disabled={isInactive}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                  isInactive 
+                    ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed' 
+                    : 'border-red-200 bg-red-50 text-red-650 hover:bg-red-100'
+                }`}
               >
                 Mark Lost
               </button>
               <button 
                 onClick={() => setIsEditing(!isEditing)}
+                disabled={isInactive}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                  isEditing 
-                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' 
-                    : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'
+                  isInactive 
+                    ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : isEditing 
+                      ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' 
+                      : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'
                 }`}
               >
                 {isEditing ? 'Cancel Edit' : 'Edit Details'}
@@ -1036,7 +1160,7 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Column 1: Contact Info */}
                 <div className="space-y-3.5">
-                  <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded w-fit flex items-center gap-1 cursor-pointer hover:bg-blue-100 transition-all" onClick={() => setIsEditing(true)}>
+                  <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded w-fit flex items-center gap-1">
                     📞 Contact Info
                   </h4>
                   <div className="grid grid-cols-1 gap-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100 font-semibold">
@@ -1090,7 +1214,7 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
 
                 {/* Column 2: Travel Requirements */}
                 <div className="space-y-3.5">
-                  <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded w-fit flex items-center gap-1 cursor-pointer hover:bg-indigo-100 transition-all" onClick={() => setIsEditing(true)}>
+                  <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded w-fit flex items-center gap-1">
                     ✈️ Travel Requirements
                   </h4>
                   <div className="grid grid-cols-1 gap-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100 font-semibold">
@@ -1161,7 +1285,7 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
 
                 {/* Column 3: Preferences & Budget */}
                 <div className="space-y-3.5">
-                  <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded w-fit flex items-center gap-1 cursor-pointer hover:bg-emerald-100 transition-all" onClick={() => setIsEditing(true)}>
+                  <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded w-fit flex items-center gap-1">
                     ⭐ Preferences & Budget
                   </h4>
                   <div className="grid grid-cols-1 gap-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100 font-semibold">
@@ -1304,6 +1428,19 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
                 )}
               </div>
 
+              <div className="pt-3 px-1 flex gap-2 flex-wrap mb-1">
+                {['Client not reachable', 'Asked to call tomorrow', 'Send details on WhatsApp', 'Not interested'].map((tpl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setNewRemark(prev => prev ? `${prev} | ${tpl}: ` : `${tpl}: `)}
+                    className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-semibold rounded-md border border-slate-200 transition-colors"
+                  >
+                    {tpl}
+                  </button>
+                ))}
+              </div>
+
               <form onSubmit={handleAddRemarkSubmit} className="border-t border-slate-100 pt-4 flex gap-3">
                 <textarea
                   rows="2"
@@ -1312,10 +1449,11 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
                   placeholder="Type an internal note or update remark here..."
                   className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-slate-450 bg-slate-50 focus:bg-white transition-all resize-none"
                   required
+                  disabled={isInactive}
                 />
                 <button
                   type="submit"
-                  disabled={isAddingRemark || !newRemark.trim()}
+                  disabled={isInactive || isAddingRemark || !newRemark.trim()}
                   className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg disabled:opacity-50 shadow-md hover:shadow-lg transition-all h-fit self-end"
                 >
                   {isAddingRemark ? 'Posting...' : 'Post Note'}
@@ -1383,6 +1521,74 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
         </div>
       </div>
 
+      {/* Customer Document Manager */}
+      {showDocuments && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <CustomerDocumentManager
+            leadId={currentLead._id || currentLead.id}
+            customerName={currentLead.name}
+            customerId={currentLead._id || currentLead.id}
+          />
+        </div>
+      )}
+
+      {/* Mark Lost Modal */}
+      {showLostModal && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 bg-red-50/50 flex justify-between items-center">
+              <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <span className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shadow-sm">
+                  <X size={18} />
+                </span>
+                Mark as Lost
+              </h3>
+              <button 
+                onClick={() => setShowLostModal(false)}
+                className="text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 p-1.5 rounded-full transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-sm text-slate-600 mb-4">
+                Please provide a reason for marking this lead as lost. This will be added to the lead's remarks for future reference.
+              </p>
+              
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Lost Reason <span className="text-red-500">*</span></label>
+                <textarea
+                  value={lostReason}
+                  onChange={(e) => setLostReason(e.target.value)}
+                  placeholder="E.g., Budget too low, Booked with competitor, Unresponsive..."
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all resize-none text-sm bg-slate-50 focus:bg-white"
+                  rows={4}
+                  autoFocus
+                ></textarea>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button
+                onClick={() => setShowLostModal(false)}
+                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition-all text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitMarkAsLost}
+                disabled={!lostReason.trim()}
+                className="px-5 py-2.5 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg text-sm flex items-center gap-2"
+              >
+                Confirm Lost
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       <SendQuotationModal 
         isOpen={isQuotationModalOpen}
         onClose={() => setIsQuotationModalOpen(false)}
@@ -1395,7 +1601,11 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
         onClose={() => setIsFollowUpModalOpen(false)}
         lead={currentLead}
         user={user}
-        onFollowUpSaved={fetchLeadDetails}
+        onFollowUpSaved={() => {
+          setIsFollowUpModalOpen(false);
+          setOpenSteps(prev => ({ ...prev, step1: false, step2: true }));
+          fetchLeadDetails();
+        }}
       />
 
       {showQuoteDetails && (() => {

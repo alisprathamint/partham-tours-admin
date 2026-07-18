@@ -321,95 +321,167 @@ const TeamPipeline = () => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
-  const renderQueryRow = (query, isBoard = true) => {
+  const renderKanbanCard = (query) => {
     const isDragging = draggingId === query.id;
-    const currentStage = STAGES.find(s => s.id === query.status) || STAGES[0];
-
     return (
-      <tr
+      <div
         key={query.id}
-        draggable={isBoard && draggableCardId === query.id}
-        onDragStart={(e) => isBoard ? handleDragStart(e, query.id) : undefined}
-        onDragEnd={isBoard ? handleDragEnd : undefined}
-        className={`bg-white hover:bg-blue-50 transition-colors group ${isDragging ? 'opacity-50' : ''
-          } ${isBoard && draggableCardId === query.id ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        draggable={true}
+        onDragStart={(e) => handleDragStart(e, query.id)}
+        onDragEnd={handleDragEnd}
+        className={`bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 flex flex-col gap-3 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-blue-300 transition-all ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
       >
-        {/* Client Info */}
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-3">
-            {isBoard && (
-              <button
-                className="text-slate-300 hover:text-slate-700 cursor-grab active:cursor-grabbing flex-shrink-0"
-                onMouseEnter={() => setDraggableCardId(query.id)}
-                onMouseLeave={() => setDraggableCardId(null)}
-                title="Drag Row"
-              >
-                <GripVertical size={16} />
-              </button>
-            )}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm flex-shrink-0">
+        <div className="flex justify-between items-start">
+          <div className="flex gap-2.5 items-center">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shadow-sm">
               {getInitials(query.name)}
             </div>
             <div>
-              <h4 className="font-bold text-slate-800 text-sm leading-tight truncate max-w-[150px]">{query.name}</h4>
-              <div className="text-[10px] font-medium text-slate-800 mt-0.5">#{query.id + 2500000}</div>
+              <h4 className="font-bold text-slate-800 text-xs leading-tight truncate max-w-[140px]">{query.name}</h4>
+              <div className="text-[9px] font-medium text-slate-500 mt-0.5">#{query.id + 2500000}</div>
             </div>
           </div>
-        </td>
-
-        {/* Contact */}
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-1.5 text-xs text-slate-800">
-            <Phone size={12} className="text-slate-800" /> {query.phone}
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (openDropdownId === query.id) {
+                  setOpenDropdownId(null);
+                } else {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const menuHeight = 160;
+                  const spaceBelow = window.innerHeight - rect.bottom;
+                  
+                  if (spaceBelow < menuHeight) {
+                    setDropdownPos({ bottom: Math.round(window.innerHeight - rect.top + 4), right: Math.round(window.innerWidth - rect.right) });
+                  } else {
+                    setDropdownPos({ top: Math.round(rect.bottom + 4), right: Math.round(window.innerWidth - rect.right) });
+                  }
+                  setOpenDropdownId(query.id);
+                }
+              }}
+              className="text-slate-400 hover:text-slate-800 p-1 hover:bg-slate-100 rounded transition-colors"
+            >
+              <MoreVertical size={14} />
+            </button>
+            {openDropdownId === query.id && createPortal(
+              <div
+                className="fixed w-36 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-[9999] animate-in fade-in zoom-in-95 duration-200 text-left"
+                style={{ 
+                  ...(dropdownPos.bottom ? { bottom: `${dropdownPos.bottom}px` } : { top: `${dropdownPos.top}px` }),
+                  right: `${dropdownPos.right}px` 
+                }}
+              >
+                <div className="py-1">
+                  <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); handleEditClick(query); }} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">Edit Details</button>
+                  <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); const note = window.prompt('Enter your note:'); if (note) handleAddNote(query.id, note); }} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">Add Note</button>
+                  <div className="h-px bg-slate-100 my-1"></div>
+                  <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); handleDeleteQuery(query.id); }} className="w-full text-left px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors">Delete Query</button>
+                </div>
+              </div>,
+              document.body
+            )}
           </div>
-        </td>
+        </div>
 
-        {/* Trip Details */}
-        <td className="px-4 py-3">
-          {query.destination ? (
-            <div className="flex items-center gap-1.5 text-xs text-slate-800">
-              <MapPin size={12} className="text-blue-500" />
-              <span className="font-medium truncate max-w-[120px]">{query.destination}</span>
-              {query.numDays && <span className="text-slate-800 ml-1">({query.numDays}D)</span>}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-700 font-medium">
+            <Phone size={11} className="text-slate-400" /> {query.phone}
+          </div>
+          {query.destination && (
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-700 font-medium">
+              <MapPin size={11} className="text-blue-400" />
+              <span className="truncate max-w-[180px]">{query.destination} {query.numDays && `(${query.numDays}D)`}</span>
             </div>
-          ) : (
-            <span className="text-xs text-slate-800 italic">Not specified</span>
           )}
-        </td>
+        </div>
 
-        {/* Assigned To */}
-        <td className="px-4 py-3">
+        <div className="flex gap-1.5 pt-1">
+            <button className="w-6 h-6 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100" title="WhatsApp" onClick={() => { if (query.phone) window.open(`https://wa.me/${query.phone.replace(/\D/g, '')}`, '_blank'); }}>
+              <MessageCircle size={10} />
+            </button>
+            <button className="w-6 h-6 rounded bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100" title="Call" onClick={() => { if (query.phone) window.open(`tel:${query.phone}`, '_self'); }}>
+              <Phone size={10} />
+            </button>
+            <button
+              onClick={() => handleOpenQuotation(query)}
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors text-[9px] font-medium shadow-sm flex-1 justify-center"
+            >
+              <FileText size={10} /> Quote
+            </button>
+        </div>
+
+        <div className="flex justify-between items-center mt-1 pt-2 border-t border-slate-100">
+          <div className="flex items-center gap-1">
+            <Clock size={10} className="text-amber-500" />
+            <span className="text-[9px] font-bold text-amber-700">{new Date(query.updatedAt).toLocaleDateString('en-GB')}</span>
+          </div>
           {query.assignedTo ? (
-            <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md w-fit border border-indigo-100">
-              <div className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center text-[8px] text-white font-bold">
-                {getInitials(query.assignedTo.name || '')}
-              </div>
-              <span className="text-[11px] font-bold truncate max-w-[100px]">{query.assignedTo.name}</span>
+            <div className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-full border border-indigo-100">
+              <div className="w-3.5 h-3.5 rounded-full bg-indigo-500 text-white flex justify-center items-center text-[7px]">{getInitials(query.assignedTo.name)}</div>
+              {query.assignedTo.name.split(' ')[0]}
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 bg-slate-50 text-slate-700 px-2.5 py-1 rounded-md w-fit border border-slate-200">
-              <span className="text-[11px] font-bold">Unassigned</span>
-            </div>
+             <span className="text-[9px] font-bold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">Unassigned</span>
           )}
-        </td>
+        </div>
+      </div>
+    );
+  };
 
-        {/* Status (Table View Only) */}
-        {!isBoard && (
-          <td className="px-4 py-3">
-            <div className="relative">
+  const renderTableRow = (query) => {
+    const dateObj = new Date(query.createdAt);
+    const fullDayStr = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
+    const dateMonthStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const yearStr = dateObj.toLocaleDateString('en-GB', { year: 'numeric' });
+    const currentStage = STAGES.find(s => s.id === query.status) || STAGES[0];
+
+    return (
+      <tr key={query.id} className="align-middle border-b border-slate-100 transition-colors hover:bg-slate-50/80">
+        <td className="px-3.5 py-3 text-[12px] text-slate-800 font-medium whitespace-nowrap align-middle border-r border-slate-100">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-slate-800 capitalize">{fullDayStr}</span>
+            <span className="text-[11px] text-slate-700 font-medium">{dateMonthStr}</span>
+            <span className="text-[10px] text-slate-500">{yearStr}</span>
+          </div>
+        </td>
+        <td className="px-3.5 py-3 align-middle border-r border-slate-100">
+          <div className="flex flex-col justify-center h-full">
+            <div className="font-bold text-slate-800 text-xs flex items-center gap-2 mb-0.5">
+              {query.name}
+            </div>
+            <div className="flex flex-col">
+              {query.phone && (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="text-slate-700 text-[10.5px] font-medium">{query.phone}</div>
+                </div>
+              )}
+              {query.email && (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="text-slate-800 text-[10px] truncate max-w-[200px]">{query.email}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+        <td className="px-3.5 py-3 text-xs text-slate-700 align-middle border-r border-slate-100">
+          <div className="font-bold text-slate-800 text-xs">{query.destination || 'Not Specified'}</div>
+          {query.numDays && <div className="text-slate-500 text-[10px] mt-0.5 font-medium">{query.numDays} Days</div>}
+        </td>
+        <td className="px-3.5 py-3 align-middle text-center border-r border-slate-100">
+            <div className="relative mx-auto w-32">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setStatusDropdownId(statusDropdownId === query.id ? null : query.id);
                 }}
-                className={`flex items-center justify-between gap-2 px-2.5 py-1 rounded-md text-xs font-medium border ${currentStage.headerBg} ${currentStage.textColor} ${currentStage.border} hover:opacity-80 transition-opacity w-32`}
+                className={`flex items-center justify-between gap-2 px-2.5 py-1 rounded-full text-[10px] font-bold border ${currentStage.headerBg} ${currentStage.textColor} ${currentStage.border} hover:opacity-80 transition-opacity w-full uppercase tracking-wide shadow-sm`}
               >
                 <span className="truncate">{currentStage.label}</span>
-                <ChevronDown size={14} className="flex-shrink-0" />
+                <ChevronDown size={12} className="flex-shrink-0" />
               </button>
-
               {statusDropdownId === query.id && (
-                <div className="absolute top-full left-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className="absolute top-full left-0 mt-1 w-40 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-[60] animate-in fade-in zoom-in-95 duration-200">
                   <div className="py-1">
                     {STAGES.map(s => (
                       <button
@@ -418,7 +490,7 @@ const TeamPipeline = () => {
                           setStatusDropdownId(null);
                           if (s.id !== query.status) updateQueryStatus(query.id, s.id);
                         }}
-                        className={`w-full text-left px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-2 ${s.id === query.status ? 'bg-slate-50 text-slate-800' : 'text-slate-800 hover:bg-slate-50 hover:text-slate-800'}`}
+                        className={`w-full text-left px-3 py-2 text-[10px] font-bold uppercase tracking-wide transition-colors flex items-center gap-2 ${s.id === query.status ? 'bg-slate-50 text-slate-800' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
                       >
                         <div className={`w-2 h-2 rounded-full ${s.color}`}></div>
                         {s.label}
@@ -428,59 +500,67 @@ const TeamPipeline = () => {
                 </div>
               )}
             </div>
-          </td>
-        )}
-
-        {/* Updated */}
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded w-fit font-medium border border-amber-200/50">
-            <Clock size={10} /> {new Date(query.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+        </td>
+        <td className="px-3.5 py-3 align-middle border-r border-slate-100">
+          <div className="text-slate-700 text-[11px] truncate max-w-[150px]" title={query.notes && query.notes.length > 0 ? query.notes[query.notes.length - 1].content : ''}>
+            {query.notes && query.notes.length > 0 
+              ? query.notes[query.notes.length - 1].content 
+              : <span className="italic text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">No remarks</span>
+            }
           </div>
         </td>
-
-        {/* Actions */}
-        <td className="px-4 py-3 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10">
-          <div className="flex items-center justify-end gap-2">
-            <button className="w-7 h-7 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100 hover:border-emerald-500" title="WhatsApp" onClick={() => { if (query.phone) window.open(`https://wa.me/${query.phone.replace(/\D/g, '')}`, '_blank'); }}>
+        <td className="px-3.5 py-3 align-middle border-r border-slate-100">
+          <div className="flex items-center justify-start gap-2">
+             <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-[10px] shadow-sm flex-shrink-0">
+               {query.assignedTo ? query.assignedTo.name.charAt(0).toUpperCase() : 'U'}
+             </div>
+             <div className="text-slate-800 font-bold text-[11px] truncate max-w-[100px]">
+               {query.assignedTo ? query.assignedTo.name : 'Unassigned'}
+             </div>
+          </div>
+        </td>
+        <td className="px-3.5 py-3 text-center align-middle sticky right-0 bg-white z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center justify-center gap-1.5">
+            <button className="w-7 h-7 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100" title="WhatsApp" onClick={() => { if (query.phone) window.open(`https://wa.me/${query.phone.replace(/\D/g, '')}`, '_blank'); }}>
               <MessageCircle size={13} />
             </button>
-            <button className="w-7 h-7 rounded bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 hover:border-blue-600" title="Call" onClick={() => { if (query.phone) window.open(`tel:${query.phone}`, '_self'); }}>
+            <button className="w-7 h-7 rounded bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100" title="Call" onClick={() => { if (query.phone) window.open(`tel:${query.phone}`, '_self'); }}>
               <Phone size={13} />
             </button>
-            <button
-              onClick={() => handleOpenQuotation(query)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors text-[10px] font-medium shadow-sm ml-1"
-            >
-              <FileText size={12} />
-              Quote
-            </button>
-
-            <div className="relative flex items-center">
+            <div className="relative">
               <button
-                className={`flex items-center justify-center w-8 h-8 rounded-full transition-all ${openDropdownId === query.id ? 'bg-blue-100 text-blue-600' : 'text-slate-800 hover:text-slate-700 hover:bg-slate-100'}`}
+                className={`flex items-center justify-center w-7 h-7 rounded transition-all shadow-sm border ${openDropdownId === query.id ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (openDropdownId === query.id) {
                     setOpenDropdownId(null);
                   } else {
                     const rect = e.currentTarget.getBoundingClientRect();
-                    setDropdownPos({
-                      top: Math.round(rect.bottom + 4),
-                      right: Math.round(window.innerWidth - rect.right)
-                    });
+                    const menuHeight = 160;
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    
+                    if (spaceBelow < menuHeight) {
+                      setDropdownPos({ bottom: Math.round(window.innerHeight - rect.top + 4), right: Math.round(window.innerWidth - rect.right) });
+                    } else {
+                      setDropdownPos({ top: Math.round(rect.bottom + 4), right: Math.round(window.innerWidth - rect.right) });
+                    }
                     setOpenDropdownId(query.id);
                   }
                 }}
               >
-                <MoreVertical size={16} />
+                <MoreVertical size={14} />
               </button>
               {openDropdownId === query.id && createPortal(
                 <div
-                  className="fixed w-36 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-[9999] animate-in fade-in zoom-in-95 duration-200 text-left"
-                  style={{ top: `${dropdownPos.top}px`, right: `${dropdownPos.right}px` }}
+                  className="fixed w-36 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-[9999] animate-in fade-in zoom-in-95 duration-200 text-left"
+                  style={{ 
+                    ...(dropdownPos.bottom ? { bottom: `${dropdownPos.bottom}px` } : { top: `${dropdownPos.top}px` }),
+                    right: `${dropdownPos.right}px` 
+                  }}
                 >
                   <div className="py-1">
                     <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); handleEditClick(query); }} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">Edit Details</button>
+                    <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); handleOpenQuotation(query); }} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">Send Quote</button>
                     <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); const note = window.prompt('Enter your note:'); if (note) handleAddNote(query.id, note); }} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">Add Note</button>
                     <div className="h-px bg-slate-100 my-1"></div>
                     <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); handleDeleteQuery(query.id); }} className="w-full text-left px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors">Delete Query</button>
@@ -643,7 +723,7 @@ const TeamPipeline = () => {
       ) : (
         <div className="flex-1 overflow-y-auto pb-4 pr-2 custom-scrollbar">
           {viewMode === 'board' ? (
-            <div className="flex flex-col gap-6 w-full">
+            <div className="flex gap-5 w-full h-full pb-2 overflow-x-auto custom-scrollbar">
               {STAGES.map(stage => {
                 const stageQueries = filteredQueries.filter(q => q.status === stage.id);
                 const isDragOver = dragOverStage === stage.id;
@@ -651,46 +731,27 @@ const TeamPipeline = () => {
                 return (
                   <div
                     key={stage.id}
-                    className={`w-full flex flex-col rounded-xl transition-colors duration-200 ${isDragOver ? 'bg-slate-100/80 ring-2 ring-blue-400 ring-inset' : 'bg-slate-50/60 border border-slate-200'}`}
+                    className={`flex-shrink-0 w-[300px] flex flex-col rounded-xl transition-colors duration-200 ${isDragOver ? 'bg-slate-100/80 ring-2 ring-blue-400 ring-inset' : 'bg-slate-50/60 border border-slate-200'}`}
                     onDragOver={(e) => handleDragOver(e, stage.id)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, stage.id)}
                   >
-                    {/* Section Header */}
-                    <div className={`px-5 py-3 border-b ${stage.border} ${stage.headerBg} rounded-t-xl flex justify-between items-center shadow-sm`}>
+                    <div className={`px-4 py-3 border-b ${stage.border} ${stage.headerBg} rounded-t-xl flex justify-between items-center shadow-sm`}>
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`}></div>
-                        <span className={`font-semibold text-sm ${stage.textColor}`}>{stage.label}</span>
+                        <div className={`w-2 h-2 rounded-full ${stage.color}`}></div>
+                        <span className={`font-bold text-[13px] ${stage.textColor}`}>{stage.label}</span>
                       </div>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold bg-white shadow-sm ${stage.textColor}`}>
-                        {stageQueries.length} Leads
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white shadow-sm ${stage.textColor}`}>
+                        {stageQueries.length}
                       </span>
                     </div>
 
-                    {/* Section Body (Grid View) */}
-                    <div className="p-0 min-h-[120px]">
+                    <div className="p-3 flex flex-col gap-3 flex-1 overflow-y-auto custom-scrollbar min-h-[150px] max-h-[calc(100vh-250px)]">
                       {stageQueries.length > 0 ? (
-
-                        <div className="overflow-x-auto custom-scrollbar">
-                          <table className="w-full text-left border-collapse whitespace-nowrap">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider w-1/4">Client</th>
-                                <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Contact</th>
-                                <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Trip Details</th>
-                                <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Assigned To</th>
-                                <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Updated</th>
-                                <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-right">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {stageQueries.map(query => renderQueryRow(query, true))}
-                            </tbody>
-                          </table>
-                        </div>
+                         stageQueries.map(query => renderKanbanCard(query))
                       ) : (
-                        <div className="flex flex-col items-center justify-center h-24 text-slate-800 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50/50 m-4 hover:bg-slate-100 transition-colors">
-                          <span className="text-xs font-medium">Drop queries here to move to {stage.label}</span>
+                        <div className="flex flex-col items-center justify-center h-24 text-slate-800 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50/50 m-1 hover:bg-slate-100 transition-colors">
+                          <span className="text-xs font-medium">Drop queries here</span>
                         </div>
                       )}
                     </div>
@@ -704,18 +765,18 @@ const TeamPipeline = () => {
                 <table className="w-full text-left border-collapse whitespace-nowrap">
                   <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                     <tr>
-                      <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider w-1/4">Client</th>
-                      <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Contact</th>
-                      <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Trip Details</th>
-                      <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Assigned To</th>
-                      <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Updated</th>
-                      <th className="px-4 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-right sticky right-0 bg-slate-50 z-20 min-w-[80px]">Actions</th>
+                      <th className="px-3.5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider w-[12%]">Created Date</th>
+                      <th className="px-3.5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider w-[22%]">Customer Details</th>
+                      <th className="px-3.5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider w-[16%]">Requirement</th>
+                      <th className="px-3.5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider text-center w-[12%]">Status</th>
+                      <th className="px-3.5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider w-[18%]">Remarks</th>
+                      <th className="px-3.5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider w-[12%]">Assigned To</th>
+                      <th className="px-3.5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider text-center sticky right-0 bg-slate-50 z-20 w-[8%]">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredQueries.length > 0 ? (
-                      filteredQueries.map(query => renderQueryRow(query, false))
+                      filteredQueries.map(query => renderTableRow(query))
                     ) : (
                       <tr>
                         <td colSpan={7} className="px-4 py-12 text-center text-slate-700">No leads found.</td>

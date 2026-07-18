@@ -28,7 +28,7 @@ const Sidebar = ({ isOpen }) => {
         { title: 'My Queries', path: '/crm/my-queries' },
         // { title: 'Queries Pipeline', path: '/crm/queries' },
         { title: 'Team Pipeline', path: '/crm/team-pipeline', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] },
-        { title: 'Confirmed Queries', path: '/crm/confirmed-queries', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] }
+        { title: 'Confirmed Clients', path: '/crm/confirmed-queries', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] }
       ]
     },
     {
@@ -118,14 +118,16 @@ const Sidebar = ({ isOpen }) => {
 
   const filteredMenuItems = useMemo(() => {
     if (!user) return menuItems;
+    const userRole = user.role?.toUpperCase();
+    
     return menuItems.reduce((acc, item) => {
-      if (!item.roles.includes(user.role)) return acc;
+      if (!item.roles.includes(userRole)) return acc;
       
       let filteredItem = { ...item };
       
       if (filteredItem.subItems) {
         filteredItem.subItems = filteredItem.subItems.filter(subItem => 
-          !subItem.roles || subItem.roles.includes(user.role)
+          !subItem.roles || subItem.roles.includes(userRole)
         );
         
         // Only include parent if it still has subitems after filtering
@@ -307,16 +309,23 @@ const Sidebar = ({ isOpen }) => {
                     }
                   `}
                 >
-                  <span className="flex-shrink-0 w-6 flex items-center justify-center">
-                    {item.icon}
-                  </span>
-                  <span className={`
-                    sidebar-text
-                    whitespace-nowrap overflow-hidden
-                    ${isExpanded ? 'max-w-[200px] opacity-100 ml-3' : 'max-w-0 opacity-0 ml-0'}
-                  `}>
-                    {item.title}
-                  </span>
+                  {({ isActive }) => (
+                    <div className="flex items-center min-w-0 flex-1 justify-center md:justify-start">
+                      <span className={`
+                        flex-shrink-0 w-6 flex items-center justify-center
+                        ${isActive ? 'text-blue-600' : ''}
+                      `}>
+                        {item.icon}
+                      </span>
+                      <span className={`
+                        sidebar-text
+                        whitespace-nowrap overflow-hidden
+                        ${isExpanded ? 'max-w-[200px] opacity-100 ml-3' : 'max-w-0 opacity-0 ml-0'}
+                      `}>
+                        {item.title}
+                      </span>
+                    </div>
+                  )}
                 </NavLink>
               );
             })}

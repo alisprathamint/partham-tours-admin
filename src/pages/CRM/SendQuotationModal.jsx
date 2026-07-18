@@ -118,6 +118,7 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
     
     if (selectedPkg?.pdfUrl) {
       window.open(getPdfUrl(selectedPkg.pdfUrl), '_blank');
+      onClose();
     } else {
       alert('No itinerary PDF available for this package. Please upload one in the Packages section.');
     }
@@ -153,6 +154,7 @@ const SendQuotationModal = ({ isOpen, onClose, query, onStatusUpdate }) => {
     
     const encodedText = encodeURIComponent(text);
     window.open(`https://wa.me/${phone}?text=${encodedText}`, '_blank');
+    onClose();
   };
   if (!isOpen) return null;
 

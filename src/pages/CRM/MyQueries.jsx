@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Eye, MessageSquare, Edit2, Search, FileText, Briefcase, MoreVertical, User, Mail, Phone, MapPin, Calendar, CheckCircle2, Clock, Map, ChevronDown, Filter, ChevronUp } from 'lucide-react';
+import { Eye, MessageSquare, Edit2, Search, FileText, Briefcase, MoreVertical, User, Mail, Phone, MapPin, Calendar, CheckCircle2, Clock, Map, ChevronDown, Filter, ChevronUp, Plus } from 'lucide-react';
 import FollowUpModal from './FollowUpModal';
 import SendQuotationModal from './SendQuotationModal';
+import AddQueryModal from './AddQueryModal';
 import api from '../../api/axios';
 
 const CustomSelect = ({ label, options, value, onChange, placeholder = "Select..." }) => {
@@ -241,8 +242,13 @@ const MyQueries = () => {
       const response = await api.get('/crm/leads?type=QUERY');
       const data = response.data;
       if (data.success) {
-        // Filter to only show queries assigned to the current user
-        setLeads(data.data.filter(q => q.assignedToId === user?.id));
+        const allQueries = data.data;
+        // Admin and Super Admin see ALL queries; others see only their assigned ones
+        const isAdminRole = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+        const filtered = isAdminRole 
+          ? allQueries 
+          : allQueries.filter(q => Number(q.assignedToId) === Number(user?.id));
+        setLeads(filtered);
       }
     } catch (err) {
       console.error('Error fetching leads:', err);
@@ -484,8 +490,25 @@ const MyQueries = () => {
     setAppliedFilters(defaultFilters);
   };
 
+  const [isAddQueryModalOpen, setIsAddQueryModalOpen] = useState(false);
+
   return (
     <div className="space-y-4">
+      {/* Header with Add Query Button */}
+      <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">My Queries</h1>
+          <p className="text-sm text-slate-500">Manage and track your active queries</p>
+        </div>
+        <button 
+          onClick={() => setIsAddQueryModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-sm"
+        >
+          <Plus size={16} strokeWidth={2.5} />
+          Add Query
+        </button>
+      </div>
+
       {/* Filter Results Section */}
       {/* Filter Results Section */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300">
@@ -663,13 +686,12 @@ const MyQueries = () => {
         <table className="w-full text-left border-collapse min-w-[1200px]">
           <thead>
             <tr className="border-b border-slate-200 text-slate-700 font-medium text-[12px] bg-slate-50/50">
-              <th className="px-3.5 py-2 font-normal whitespace-nowrap">Created Date</th>
-              <th className="px-3.5 py-2 min-w-[200px] font-normal">Customer Details</th>
-              <th className="px-3.5 py-2 font-normal">Source</th>
-              <th className="px-3.5 py-2 font-normal">Requirement</th>
-              <th className="px-3.5 py-2 font-normal text-center">Status</th>
-              <th className="px-3.5 py-2 min-w-[150px] font-normal">Remarks</th>
-              <th className="px-3.5 py-2 font-normal text-center">Owner</th>
+              <th className="px-3.5 py-2 font-normal whitespace-nowrap border-r border-slate-200">Created Date</th>
+              <th className="px-3.5 py-2 min-w-[200px] font-normal border-r border-slate-200">Customer Details</th>
+              <th className="px-3.5 py-2 font-normal border-r border-slate-200">Requirement</th>
+              <th className="px-3.5 py-2 font-normal text-center border-r border-slate-200">Status</th>
+              <th className="px-3.5 py-2 min-w-[150px] font-normal border-r border-slate-200">Remarks</th>
+              <th className="px-3.5 py-2 font-normal text-center border-r border-slate-200">Owner</th>
               <th className="px-3.5 py-2 text-center font-normal w-28">Action</th>
             </tr>
           </thead>
@@ -694,8 +716,9 @@ const MyQueries = () => {
             ) : (
               currentLeads.map((lead, index) => {
                 const dateObj = new Date(lead.createdAt);
-                const dayStr = dateObj.toLocaleDateString('en-GB', { weekday: 'short' });
-                const dateOnlyStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                const fullDayStr = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
+                const dateMonthStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                const yearStr = dateObj.toLocaleDateString('en-GB', { year: 'numeric' });
                 
                 const getStatusStyle = (status) => {
                   switch(status) {
@@ -738,13 +761,14 @@ const MyQueries = () => {
                    onClick={() => navigate(`/crm/queries/${lead.id}`, { state: { lead } })}
                    className={`align-middle border-b border-slate-100 transition-colors cursor-pointer hover:bg-slate-50/80 ${isLast ? 'border-b-0' : ''}`}
                  >
-                  <td className="px-3.5 py-2 text-[12px] text-slate-800 font-medium whitespace-nowrap align-middle">
+                  <td className="px-3.5 py-2 text-[12px] text-slate-800 font-medium whitespace-nowrap align-middle border-r border-slate-100">
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-bold text-slate-700">{dayStr}</span>
-                      <span className="text-[10.5px] text-slate-500">{dateOnlyStr}</span>
+                      <span className="font-bold text-slate-800 capitalize">{fullDayStr}</span>
+                      <span className="text-[11px] text-slate-700 font-medium">{dateMonthStr}</span>
+                      <span className="text-[10px] text-slate-500">{yearStr}</span>
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle">
+                  <td className="px-3.5 py-2 align-middle border-r border-slate-100">
                     <div className="flex flex-col justify-center h-full">
                       <div className="font-bold text-slate-800 text-xs flex items-center gap-2 mb-0.5">
                         <span className="hover:text-blue-600 hover:underline">
@@ -768,18 +792,8 @@ const MyQueries = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle">
-                    <div 
-                      className="flex flex-col justify-center h-full p-1.5 -mx-1.5 rounded-lg transition-colors group hover:bg-slate-50 w-fit"
-                      title="Click to view full source details"
-                    >
-                      <div className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors uppercase tracking-wide text-[10.5px]">{lead.source || 'Website'}</div>
-                      <div className="text-slate-850 text-[9.5px] mt-0.5 font-medium flex items-center gap-1 group-hover:text-blue-500 transition-colors">
-                        Click to view details
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3.5 py-2 text-xs text-slate-700 align-middle">
+
+                  <td className="px-3.5 py-2 text-xs text-slate-700 align-middle border-r border-slate-100">
                     <div 
                       className="flex flex-col justify-center h-full p-1.5 -mx-1.5 rounded-lg transition-colors group hover:bg-slate-50"
                       title="Click to view full requirements"
@@ -790,7 +804,7 @@ const MyQueries = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle text-center">
+                  <td className="px-3.5 py-2 align-middle text-center border-r border-slate-100">
                     <div className="flex items-center justify-center gap-1 bg-white px-2 py-0.5 rounded-full border border-slate-100 shadow-sm w-fit mx-auto">
                       <span className={`w-1 h-1 rounded-full ${statusStyle.bg}`}></span>
                       <span className={`text-[9.5px] font-bold ${statusStyle.color} tracking-wide uppercase`}>
@@ -798,7 +812,7 @@ const MyQueries = () => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle">
+                  <td className="px-3.5 py-2 align-middle border-r border-slate-100">
                     <div 
                       className="text-slate-700 text-[11px] truncate max-w-[150px] hover:text-blue-600 transition-colors group" 
                       title={lead.notes && lead.notes.length > 0 ? lead.notes[lead.notes.length - 1].content : ''}
@@ -809,7 +823,8 @@ const MyQueries = () => {
                       }
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle">
+
+                  <td className="px-3.5 py-2 align-middle border-r border-slate-100">
                     <div className="flex items-center justify-start gap-2">
                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-[10px] shadow-sm ring-2 ring-white flex-shrink-0">
                          {(lead.assignedTo?.name || 'U').charAt(0).toUpperCase()}
@@ -1535,6 +1550,16 @@ const MyQueries = () => {
           </div>
         </div>, document.body
       )}
+
+      {/* Add Query Modal */}
+      <AddQueryModal
+        isOpen={isAddQueryModalOpen}
+        onClose={() => setIsAddQueryModalOpen(false)}
+        user={user}
+        onSuccess={(newLead) => {
+          fetchLeads();
+        }}
+      />
 
     </div>
   );

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Calendar, Clock, Bell, User, Phone, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 
 const FollowUpModal = ({ isOpen, onClose, lead, user, onFollowUpSaved }) => {
+  const navigate = useNavigate();
   const [isClosing, setIsClosing] = useState(false);
 
   const handleClose = () => {
@@ -54,7 +56,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, user, onFollowUpSaved }) => {
         console.error('FollowUpModal fetch users error:', err);
       }
     };
-    if (user && isOpen) fetchUsers();
+    if (isOpen) fetchUsers();
   }, [user, isOpen]);
 
   if (!isOpen || !lead) return null;
@@ -80,6 +82,7 @@ const FollowUpModal = ({ isOpen, onClose, lead, user, onFollowUpSaved }) => {
       if (data.success) {
         onFollowUpSaved();
         onClose();
+        navigate('/crm/my-queries');
       } else {
         alert('Failed to save follow up');
       }
@@ -204,8 +207,8 @@ const FollowUpModal = ({ isOpen, onClose, lead, user, onFollowUpSaved }) => {
                   <label className="text-[9px] font-medium text-slate-700 uppercase tracking-wider">Action Required</label>
                   <div className="flex flex-wrap gap-1.5">
                     {(lead?.type === 'QUERY' ? 
-                      ['Call Back', 'WhatsApp', 'Meeting', 'Deal Lost'] : 
-                      ['Call Back', 'WhatsApp', 'Meeting', 'Create Query', 'Lost']
+                      ['Call Back', 'WhatsApp', 'Meeting', 'Send Quotation', 'Deal Lost'] : 
+                      ['Call Back', 'WhatsApp', 'Meeting', 'Lost']
                     ).map(opt => (
                       <button
                         key={opt}
@@ -220,10 +223,15 @@ const FollowUpModal = ({ isOpen, onClose, lead, user, onFollowUpSaved }) => {
                         {opt}
                       </button>
                     ))}
+                    {lead?.type !== 'QUERY' && (
+                      <span className="text-[9px] text-blue-600 font-semibold bg-blue-50 border border-blue-100 px-2 py-1 rounded flex items-center gap-1">
+                        ✓ Auto-creates query in My Queries
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {formData.nextAction !== 'Create Query' && formData.nextAction !== 'Lost' && formData.nextAction !== 'Deal Lost' && (
+                {formData.nextAction !== 'Lost' && formData.nextAction !== 'Deal Lost' && formData.nextAction !== 'Send Quotation' && (
                   <div className="bg-slate-50/80 p-2.5 rounded-lg border border-slate-200 space-y-2">
                     <div className="space-y-1">
                       <label className="text-[9px] font-medium text-slate-700 uppercase tracking-wider">Schedule For</label>

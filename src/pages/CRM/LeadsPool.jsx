@@ -685,19 +685,21 @@ const LeadsPool = () => {
       <div className="flex justify-between items-center border-b border-slate-200 pb-4">
         <div className="flex items-center gap-4">
           <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Leads List</h4>
-          <button 
-            onClick={() => {
-              setIsSelectionMode(!isSelectionMode);
-              if (isSelectionMode) setSelectedLeads([]); // clear selection when canceling
-            }}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-2 ${
-              isSelectionMode 
-                ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
-                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 shadow-sm'
-            }`}
-          >
-            {isSelectionMode ? 'Cancel Selection' : 'Select Leads'}
-          </button>
+          {user?.role !== 'SALES_EXECUTIVE' && (
+            <button 
+              onClick={() => {
+                setIsSelectionMode(!isSelectionMode);
+                if (isSelectionMode) setSelectedLeads([]); // clear selection when canceling
+              }}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-2 ${
+                isSelectionMode 
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 shadow-sm'
+              }`}
+            >
+              {isSelectionMode ? 'Cancel Selection' : 'Select Leads'}
+            </button>
+          )}
         </div>
         <div className="font-semibold text-slate-700 text-xs bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-250">
           Total Leads: {filteredLeads.length}
@@ -725,7 +727,7 @@ const LeadsPool = () => {
         <table className="w-full text-left border-collapse min-w-[1200px]">
           <thead>
             <tr className="border-b border-slate-200 text-slate-700 font-medium text-[12px] bg-slate-50/50">
-              <th className="px-3.5 py-2 w-12 text-center font-normal">
+              <th className="px-3.5 py-2 w-12 text-center font-normal border-r border-slate-200">
                 <input 
                   type="checkbox" 
                   checked={filteredLeads.length > 0 && selectedLeads.length === filteredLeads.length}
@@ -733,13 +735,13 @@ const LeadsPool = () => {
                   className="w-3.5 h-3.5 rounded-md border-slate-300 text-slate-800 cursor-pointer transition-all focus:ring-0" 
                 />
               </th>
-              <th className="px-3.5 py-2 font-normal whitespace-nowrap">Created Date</th>
-              <th className="px-3.5 py-2 min-w-[200px] font-normal">Customer Details</th>
-              <th className="px-3.5 py-2 font-normal">Source</th>
-              <th className="px-3.5 py-2 font-normal">Requirement</th>
-              <th className="px-3.5 py-2 font-normal text-center">Status</th>
-              <th className="px-3.5 py-2 min-w-[150px] font-normal">Remarks</th>
-              <th className="px-3.5 py-2 font-normal text-center">Owner</th>
+              <th className="px-3.5 py-2 font-normal whitespace-nowrap border-r border-slate-200">Created Date</th>
+              <th className="px-3.5 py-2 min-w-[200px] font-normal border-r border-slate-200">Customer Details</th>
+              <th className="px-3.5 py-2 font-normal border-r border-slate-200">Requirement</th>
+              <th className="px-3.5 py-2 font-normal text-center border-r border-slate-200">Status</th>
+              <th className="px-3.5 py-2 min-w-[150px] font-normal border-r border-slate-200">Remarks</th>
+              <th className="px-3.5 py-2 font-normal text-center border-r border-slate-200">Follow Up</th>
+              <th className="px-3.5 py-2 font-normal text-center border-r border-slate-200">Owner</th>
               <th className="px-3.5 py-2 text-center font-normal w-28">Action</th>
             </tr>
           </thead>
@@ -764,8 +766,9 @@ const LeadsPool = () => {
             ) : (
               currentLeads.map((lead, index) => {
                 const dateObj = new Date(lead.createdAt);
-                const dayStr = dateObj.toLocaleDateString('en-GB', { weekday: 'short' });
-                const dateOnlyStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                const fullDayStr = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
+                const dateMonthStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                const yearStr = dateObj.toLocaleDateString('en-GB', { year: 'numeric' });
                 
                 const getStatusStyle = (status) => {
                   switch(status) {
@@ -814,7 +817,7 @@ const LeadsPool = () => {
                    }}
                    className={`align-middle border-b border-slate-100 transition-colors cursor-pointer hover:bg-slate-50/80 ${selectedLeads.includes(lead.id) ? 'bg-slate-50/80' : ''} ${isLast ? 'border-b-0' : ''}`}
                  >
-                  <td className="px-3.5 py-2 text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-3.5 py-2 text-center align-middle border-r border-slate-100" onClick={(e) => e.stopPropagation()}>
                     <input 
                       type="checkbox" 
                       checked={selectedLeads.includes(lead.id)}
@@ -822,13 +825,14 @@ const LeadsPool = () => {
                       className="w-3.5 h-3.5 rounded-md border-slate-300 text-slate-800 cursor-pointer focus:ring-0 transition-all" 
                     />
                   </td>
-                  <td className="px-3.5 py-2 text-[12px] text-slate-800 font-medium whitespace-nowrap align-middle">
+                  <td className="px-3.5 py-2 text-[12px] text-slate-800 font-medium whitespace-nowrap align-middle border-r border-slate-100">
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-bold text-slate-700">{dayStr}</span>
-                      <span className="text-[10.5px] text-slate-500">{dateOnlyStr}</span>
+                      <span className="font-bold text-slate-800 capitalize">{fullDayStr}</span>
+                      <span className="text-[11px] text-slate-700 font-medium">{dateMonthStr}</span>
+                      <span className="text-[10px] text-slate-500">{yearStr}</span>
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle">
+                  <td className="px-3.5 py-2 align-middle border-r border-slate-100">
                     <div className="flex flex-col justify-center h-full">
                       <div className="font-bold text-slate-800 text-xs flex items-center gap-2 mb-0.5">
                         <span 
@@ -854,20 +858,7 @@ const LeadsPool = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle">
-                    <div 
-                      className={`flex flex-col justify-center h-full p-1.5 -mx-1.5 rounded-lg transition-colors w-fit ${!isSelectionMode ? 'cursor-pointer group hover:bg-slate-50' : ''}`}
-                      title={!isSelectionMode ? "Click to view full source details" : ""}
-                    >
-                      <div className={`font-bold text-slate-800 transition-colors uppercase tracking-wide text-[10.5px] ${!isSelectionMode ? 'group-hover:text-blue-600' : ''}`}>{lead.source || 'Website'}</div>
-                      {!isSelectionMode && (
-                        <div className="text-slate-850 text-[9.5px] mt-0.5 font-medium flex items-center gap-1 group-hover:text-blue-500 transition-colors">
-                          Click to view details
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3.5 py-2 text-xs text-slate-700 align-middle">
+                  <td className="px-3.5 py-2 text-xs text-slate-700 align-middle border-r border-slate-100">
                     <div 
                       className={`flex flex-col justify-center h-full p-1.5 -mx-1.5 rounded-lg transition-colors ${!isSelectionMode ? 'cursor-pointer group hover:bg-slate-50' : ''}`}
                       title={!isSelectionMode ? "Click to view full requirements" : ""}
@@ -880,7 +871,7 @@ const LeadsPool = () => {
                       )}
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle text-center">
+                  <td className="px-3.5 py-2 align-middle text-center border-r border-slate-100">
                     <div className="flex items-center justify-center gap-1 bg-white px-2 py-0.5 rounded-full border border-slate-100 shadow-sm w-fit mx-auto">
                       <span className={`w-1 h-1 rounded-full ${statusStyle.bg}`}></span>
                       <span className={`text-[9.5px] font-bold ${statusStyle.color} tracking-wide uppercase`}>
@@ -888,7 +879,7 @@ const LeadsPool = () => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle">
+                  <td className="px-3.5 py-2 align-middle border-r border-slate-100">
                     <div 
                       className="text-slate-700 text-[11px] truncate max-w-[150px] hover:text-blue-600 transition-colors group" 
                       title={lead.notes && lead.notes.length > 0 ? lead.notes[lead.notes.length - 1].content : ''}
@@ -899,7 +890,30 @@ const LeadsPool = () => {
                       }
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 align-middle">
+                  <td className="px-3.5 py-2 align-middle text-center border-r border-slate-100">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleFollowUpClick(lead); setOpenDropdownId(null); }}
+                      className="group flex flex-col items-center justify-center w-full h-full py-1 cursor-pointer"
+                      title="Click to add/update follow-up"
+                    >
+                      {lead.nextFollowUp ? (
+                        <div className="flex flex-col items-center">
+                          <div className="text-[10.5px] font-bold text-blue-600 whitespace-nowrap">
+                            {new Date(lead.nextFollowUp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </div>
+                          <div className="text-[9px] text-blue-400 font-medium mt-0.5 flex items-center gap-0.5 group-hover:text-blue-600 transition-colors">
+                            <Clock size={9} /> Update
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm transition-all hover:shadow-md">
+                          <Clock size={10} />
+                          Follow Up
+                        </div>
+                      )}
+                    </button>
+                  </td>
+                  <td className="px-3.5 py-2 align-middle border-r border-slate-100">
                     <div className="flex items-center justify-start gap-2">
                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-[10px] shadow-sm ring-2 ring-white flex-shrink-0">
                          {(lead.assignedTo?.name || 'U').charAt(0).toUpperCase()}
@@ -1149,6 +1163,7 @@ const LeadsPool = () => {
         isOpen={isFollowUpModalOpen}
         onClose={() => setIsFollowUpModalOpen(false)}
         lead={activeFollowUpLead}
+        user={user}
         token={token}
         onFollowUpSaved={fetchLeads}
       />

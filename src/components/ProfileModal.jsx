@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, User, Mail, Lock, Briefcase, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
 const ProfileModal = ({ isOpen, onClose }) => {
   const { user, token, updateUser } = useAuth();
+  const [freshUser, setFreshUser] = useState(null);
   
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -16,6 +18,20 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isClosing, setIsClosing] = useState(false);
+
+  // Fetch fresh user data with branch info when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      api.get('/users/me').then(res => {
+        if (res.data?.success) setFreshUser(res.data.data);
+      }).catch(() => {
+        // Fallback to user from context which has branch from login
+        setFreshUser(user);
+      });
+    }
+  }, [isOpen]);
+
+  const displayUser = freshUser || user;
 
   if (!isOpen) return null;
 
@@ -72,10 +88,15 @@ const ProfileModal = ({ isOpen, onClose }) => {
     }
   };
 
-  return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={handleClose}></div>
-      <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
+  const modalContent = (
+    <div 
+      className={`fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+      onClick={handleClose}
+    >
+      <div 
+        className={`bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="px-6 py-4 flex items-center justify-between absolute w-full top-0 left-0">
           <h2 className="text-base font-bold text-slate-800">User Profile</h2>
           <button 
@@ -112,7 +133,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
                 </label>
                 <input
                   type="text"
-                  value={user?.role === 'ADMIN' ? 'Super Admin' : 'Sales'}
+                  value={displayUser?.role === 'SUPER_ADMIN' ? 'Super Admin' : displayUser?.role === 'ADMIN' ? 'Admin' : displayUser?.role === 'BRANCH_MANAGER' ? 'Branch Manager' : displayUser?.role === 'SALES_EXECUTIVE' ? 'Sales Executive' : 'Sales'}
                   readOnly
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 cursor-not-allowed focus:outline-none"
                 />
@@ -121,11 +142,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 mb-1">
                   <MapPin size={14} />
-                  Region
+                  Region / Branch
                 </label>
                 <input
                   type="text"
-                  value={user?.region || 'Not set'}
+                  value={displayUser?.managedBranch?.name || displayUser?.branch?.name || displayUser?.region || 'Not set'}
                   readOnly
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 cursor-not-allowed focus:outline-none"
                 />
@@ -216,6 +237,8 @@ const ProfileModal = ({ isOpen, onClose }) => {
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default ProfileModal;

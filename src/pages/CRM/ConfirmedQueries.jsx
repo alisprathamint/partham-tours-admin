@@ -90,7 +90,7 @@ const ConfirmedQueries = () => {
       <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between z-10 flex-shrink-0">
         <div>
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            Confirmed Queries
+            Confirmed Clients
             <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-semibold border border-indigo-200">
               {filteredQueries.length}
             </span>
@@ -132,7 +132,7 @@ const ConfirmedQueries = () => {
                     <td colSpan="5" className="px-5 py-12 text-center text-slate-700">
                       <div className="flex flex-col items-center justify-center">
                         <CheckCircle2 className="w-12 h-12 text-slate-200 mb-3" />
-                        <p className="text-base font-medium text-slate-800">No confirmed queries found</p>
+                        <p className="text-base font-medium text-slate-800">No confirmed clients found</p>
                         <p className="text-sm mt-1">Queries moved to Booking Confirmed will appear here.</p>
                       </div>
                     </td>

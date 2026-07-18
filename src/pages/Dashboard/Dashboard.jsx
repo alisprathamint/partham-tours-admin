@@ -89,6 +89,14 @@ const Dashboard = () => {
     document.addEventListener("mousedown", handleClickOutsideBranch);
     return () => document.removeEventListener("mousedown", handleClickOutsideBranch);
   }, []);
+
+  // Enforce Branch Manager to only see their own branch
+  useEffect(() => {
+    const userRole = user?.role?.toUpperCase();
+    if (user && (userRole === 'BRANCH_MANAGER' || userRole === 'SALES_EXECUTIVE') && user.branchId) {
+      setBranchFilter(user.branchId);
+    }
+  }, [user]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isClosingDatePicker, setIsClosingDatePicker] = useState(false);
   const datePickerRef = useRef(null);
@@ -199,33 +207,38 @@ const Dashboard = () => {
           // Initialize Chart based on filter
           const months = [];
           const now = new Date();
+          const referenceDate = endDate || now;
           
-          if (chartFilter === '6months') {
-            for (let i = 5; i >= 0; i--) {
-              const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-              months.push({
-                label: d.toLocaleString('default', { month: 'short' }),
-                year: d.getFullYear(),
-                monthIndex: d.getMonth(),
-                revenue: 0,
-                val: 0
-              });
-            }
-          } else if (chartFilter === 'year') {
-            for (let i = 11; i >= 0; i--) {
-              const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-              months.push({
-                label: d.toLocaleString('default', { month: 'short' }),
-                year: d.getFullYear(),
-                monthIndex: d.getMonth(),
-                revenue: 0,
-                val: 0
-              });
-            }
+          let numMonths = 5; // Default 6 months
+          if (dateFilter === 'custom' && startDate && endDate) {
+            const diff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth());
+            numMonths = Math.max(diff, 5); // At least 6 months
+            if (numMonths > 11) numMonths = 11; // Max 12 months for UI layout
+          }
+
+          for (let i = numMonths; i >= 0; i--) {
+            const d = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - i, 1);
+            months.push({
+              label: d.toLocaleString('default', { month: 'short' }),
+              year: d.getFullYear(),
+              monthIndex: d.getMonth(),
+              revenue: 0,
+              leads: 0,
+              bookings: 0
+            });
           }
 
           leads.forEach(l => {
-            // New Leads
+            const leadDate = new Date(l.createdAt);
+            const leadMonth = leadDate.getMonth();
+            const leadYear = leadDate.getFullYear();
+            
+            const monthObj = months.find(m => m.monthIndex === leadMonth && m.year === leadYear);
+            if (monthObj) {
+               monthObj.leads += 1;
+            }
+            
+            // New Leads (Total)
             if (l.type === 'LEAD') {
               newLeadsToday++;
             }
@@ -253,9 +266,10 @@ const Dashboard = () => {
               const wonMonth = wonDate.getMonth();
               const wonYear = wonDate.getFullYear();
               
-              const monthObj = months.find(m => m.monthIndex === wonMonth && m.year === wonYear);
-              if (monthObj) {
-                monthObj.revenue += dealRevenue;
+              const monthObj2 = months.find(m => m.monthIndex === wonMonth && m.year === wonYear);
+              if (monthObj2) {
+                monthObj2.revenue += dealRevenue;
+                monthObj2.bookings += 1;
               }
             }
 
@@ -467,37 +481,39 @@ const Dashboard = () => {
       {/* Top Filter Bar */}
       <div className="flex justify-end mb-6">
         <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative" ref={branchDropdownRef}>
-            <button
-              onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
-              className="flex items-center justify-between w-[160px] bg-white border border-slate-200 text-slate-700 text-[13px] font-medium py-1.5 px-4 rounded-lg hover:border-slate-300 focus:outline-none shadow-sm transition-all"
-            >
-              <span className="truncate">
-                {branchFilter === 'All' ? 'All Branches' : branches.find(b => String(b.id) === String(branchFilter))?.name || 'All Branches'}
-              </span>
-              <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isBranchDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {isBranchDropdownOpen && (
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 py-1">
-                <button
-                  onClick={() => { setBranchFilter('All'); setIsBranchDropdownOpen(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-[13px] font-medium transition-colors ${branchFilter === 'All' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
-                >
-                  All Branches
-                </button>
-                {branches.map(b => (
+          {(user?.role?.toUpperCase() === 'SUPER_ADMIN' || user?.role?.toUpperCase() === 'ADMIN') && (
+            <div className="relative" ref={branchDropdownRef}>
+              <button
+                onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
+                className="flex items-center justify-between w-[160px] bg-white border border-slate-200 text-slate-700 text-[13px] font-medium py-1.5 px-4 rounded-lg hover:border-slate-300 focus:outline-none shadow-sm transition-all"
+              >
+                <span className="truncate">
+                  {branchFilter === 'All' ? 'All Branches' : branches.find(b => String(b.id) === String(branchFilter))?.name || 'All Branches'}
+                </span>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isBranchDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {isBranchDropdownOpen && (
+                <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 py-1">
                   <button
-                    key={b.id}
-                    onClick={() => { setBranchFilter(b.id); setIsBranchDropdownOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-[13px] font-medium transition-colors ${String(branchFilter) === String(b.id) ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
+                    onClick={() => { setBranchFilter('All'); setIsBranchDropdownOpen(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-[13px] font-medium transition-colors ${branchFilter === 'All' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
                   >
-                    {b.name}
+                    All Branches
                   </button>
-                ))}
-              </div>
-            )}
-          </div>
+                  {branches.map(branch => (
+                    <button
+                      key={branch.id}
+                      onClick={() => { setBranchFilter(branch.id); setIsBranchDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[13px] font-medium transition-colors border-t border-slate-50 ${String(branchFilter) === String(branch.id) ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
+                    >
+                      {branch.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           
           <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
             {['today', 'weekly', 'monthly'].map(f => (
@@ -564,10 +580,10 @@ const Dashboard = () => {
           onClick={() => navigate('/crm/queries')}
         />
         <StatCard 
-          title="Top Lead Source" 
-          value={stats.sources && stats.sources.length > 0 ? stats.sources[0].name.charAt(0).toUpperCase() + stats.sources[0].name.slice(1).toLowerCase() : '-'} 
-          icon={TrendingUp} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
-          subtitle={stats.sources && stats.sources.length > 0 ? `${stats.sources[0].count} leads from this source` : 'No data'}
+          title="Pending Follow-ups" 
+          value={followUps.today.length + followUps.overdue.length} 
+          icon={PhoneCall} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
+          subtitle={`${followUps.overdue.length} overdue`}
         />
         <StatCard 
           title="Confirmed Bookings" 
@@ -582,10 +598,10 @@ const Dashboard = () => {
           onClick={() => navigate('/crm/team-pipeline')}
         />
         <StatCard 
-          title="Total Revenue" 
-          value={formatMoney(stats.totalRevenue)} 
-          icon={IndianRupee} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
-          onClick={() => navigate('/crm/confirmed-queries')}
+          title="Conversion Rate" 
+          value={`${stats.conversionRate || 0}%`} 
+          icon={Trophy} colorClass="text-blue-600" bgColorClass="bg-blue-50" 
+          subtitle="Success rate"
         />
       </div>
 
@@ -597,10 +613,14 @@ const Dashboard = () => {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col min-h-[400px]">
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
-                <h3 className="text-base font-bold text-slate-800">Revenue Overview</h3>
+                <h3 className="text-base font-bold text-slate-800">Leads vs Bookings Overview</h3>
                 <p className="text-[12px] text-slate-800 mt-1">
-                  {chartFilter === '6months' ? 'Last 6 Months Performance' : 'Past 12 Months Performance'}
+                  {dateFilter === 'custom' ? 'Selected Date Range Performance' : 'Recent Performance'}
                 </p>
+              </div>
+              <div className="flex gap-4">
+                 <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span className="text-xs text-slate-600 font-semibold">Total Leads</span></div>
+                 <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-500"></div><span className="text-xs text-slate-600 font-semibold">Confirmed Bookings</span></div>
               </div>
             </div>
             
@@ -613,19 +633,15 @@ const Dashboard = () => {
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }} 
-                    tickFormatter={(val) => val >= 1000 ? `₹${(val/1000)}k` : `₹${val}`}
+                    allowDecimals={false}
                   />
                   <Tooltip 
                     cursor={{fill: 'transparent'}}
-                    formatter={(value) => [formatMoney(value), 'Revenue']}
                     labelStyle={{ color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}
                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
                   />
-                  <Bar dataKey="revenue" radius={[4, 4, 0, 0]} barSize={28}>
-                    {stats.chartData?.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === stats.chartData.length - 1 ? '#0066ff' : '#0066ff'} />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="leads" name="Total Leads" radius={[4, 4, 0, 0]} barSize={20} fill="#3b82f6" />
+                  <Bar dataKey="bookings" name="Bookings" radius={[4, 4, 0, 0]} barSize={20} fill="#10b981" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

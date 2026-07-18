@@ -71,7 +71,7 @@ const ReminderCard = ({ task, onDismiss }) => {
   const handleComplete = async () => {
     setIsCompleting(true);
     try {
-      await api.put(`/crm/tasks/${task.taskId}/complete`);
+      await api.put(`/crm/tasks/${task.taskId}/complete`, { isCompleted: true });
       setIsDone(true);
       setTimeout(() => onDismiss(task.taskId), 1500);
     } catch {
