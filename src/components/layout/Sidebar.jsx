@@ -28,7 +28,7 @@ const Sidebar = ({ isOpen }) => {
         { title: 'My Queries', path: '/crm/my-queries' },
         // { title: 'Queries Pipeline', path: '/crm/queries' },
         { title: 'Team Pipeline', path: '/crm/team-pipeline', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] },
-        { title: 'Confirmed Clients', path: '/crm/confirmed-queries', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'] }
+        { title: 'Confirmed Clients', path: '/crm/confirmed-queries', roles: ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER', 'SALES_EXECUTIVE', 'SALES'] }
       ]
     },
     {

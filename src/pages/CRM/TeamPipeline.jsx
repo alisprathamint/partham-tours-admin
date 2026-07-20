@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useWebSocket } from '../../context/WebSocketContext';
 import { MoreVertical, Calendar, Phone, MapPin, MessageCircle, FileText, Clock, IndianRupee, GripVertical, Search, LayoutGrid, List, ChevronDown } from 'lucide-react';
 import SendQuotationModal from './SendQuotationModal';
 import api from '../../api/axios';
@@ -65,14 +66,14 @@ const STAGES = [
   { id: 'IN_PROGRESS', label: 'In Progress', color: 'bg-amber-500', headerBg: 'bg-amber-50', textColor: 'text-amber-700', border: 'border-amber-200' },
   { id: 'PROPOSAL_SENT', label: 'Quotation Sent', color: 'bg-purple-500', headerBg: 'bg-purple-50', textColor: 'text-purple-700', border: 'border-purple-200' },
   { id: 'NEGOTIATION', label: 'Negotiation', color: 'bg-pink-500', headerBg: 'bg-pink-50', textColor: 'text-pink-700', border: 'border-pink-200' },
-  { id: 'BOOKING_CONFIRMED', label: 'Booking Confirmed', color: 'bg-indigo-500', headerBg: 'bg-indigo-50', textColor: 'text-indigo-700', border: 'border-indigo-200' },
-  { id: 'PAYMENT_RECEIVED', label: 'Payment Received', color: 'bg-teal-500', headerBg: 'bg-teal-50', textColor: 'text-teal-700', border: 'border-teal-200' },
-  { id: 'WON', label: 'Closed Won', color: 'bg-emerald-500', headerBg: 'bg-emerald-50', textColor: 'text-emerald-700', border: 'border-emerald-200' },
-  { id: 'LOST', label: 'Closed Lost', color: 'bg-rose-500', headerBg: 'bg-rose-50', textColor: 'text-rose-700', border: 'border-rose-200' }
+  { id: 'BOOKING_CONFIRMED', label: 'Booking Confirmed', color: 'bg-blue-500', headerBg: 'bg-blue-50', textColor: 'text-blue-700', border: 'border-blue-200' },
+  { id: 'PAYMENT_RECEIVED', label: 'Payment Received', color: 'bg-emerald-500', headerBg: 'bg-emerald-50', textColor: 'text-emerald-700', border: 'border-emerald-200' },
+  { id: 'LOST', label: 'Lost Leads', color: 'bg-rose-500', headerBg: 'bg-rose-50', textColor: 'text-rose-700', border: 'border-rose-200' }
 ];
 
 const TeamPipeline = () => {
   const { token, user } = useAuth();
+  const { subscribe } = useWebSocket();
   const [queries, setQueries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [draggingId, setDraggingId] = useState(null);
@@ -103,10 +104,12 @@ const TeamPipeline = () => {
   // Filter States
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [users, setUsers] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [filters, setFilters] = useState({
     customerName: '',
     customerMobile: '',
     destination: '',
+    branch: '',
     assignedTo: '',
     fromDate: '',
     toDate: '',
@@ -126,9 +129,21 @@ const TeamPipeline = () => {
     }
   };
 
+  const fetchBranches = async () => {
+    try {
+      const response = await api.get('/branches');
+      const data = response.data;
+      if (data.success) {
+        setBranches(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+    }
+  };
+
   const handleResetFilters = () => {
     const defaultFilters = {
-      customerName: '', customerMobile: '', destination: '', assignedTo: '', fromDate: '', toDate: '', unAssigned: false
+      customerName: '', customerMobile: '', destination: '', branch: '', assignedTo: '', fromDate: '', toDate: '', unAssigned: false
     };
     setFilters(defaultFilters);
     setAppliedFilters(defaultFilters);
@@ -167,11 +182,27 @@ const TeamPipeline = () => {
   useEffect(() => {
     if (token) {
       fetchQueries();
+      fetchBranches();
       if (user?.role !== 'SALES_EXECUTIVE') {
         fetchUsers();
       }
     }
   }, [token, user]);
+
+  // Real-time: refetch queries when lead is updated or assigned
+  useEffect(() => {
+    if (!subscribe) return;
+    const unsubUpdate = subscribe('lead_updated', () => {
+      fetchQueries();
+    });
+    const unsubAssign = subscribe('lead_assigned', () => {
+      fetchQueries();
+    });
+    return () => {
+      unsubUpdate();
+      unsubAssign();
+    };
+  }, [subscribe]);
 
   useEffect(() => {
     if (token && isEditModalOpen && destinations.length === 0) {
@@ -580,6 +611,7 @@ const TeamPipeline = () => {
     if (appliedFilters.customerName && !q.name?.toLowerCase().includes(appliedFilters.customerName.toLowerCase())) match = false;
     if (appliedFilters.customerMobile && !q.phone?.includes(appliedFilters.customerMobile)) match = false;
     if (appliedFilters.destination && !q.destination?.toLowerCase().includes(appliedFilters.destination.toLowerCase())) match = false;
+    if (appliedFilters.branch && q.branchId !== parseInt(appliedFilters.branch)) match = false;
     if (appliedFilters.assignedTo && q.assignedTo?.id !== parseInt(appliedFilters.assignedTo)) match = false;
     if (appliedFilters.unAssigned && q.assignedTo) match = false;
     if (appliedFilters.fromDate && new Date(q.createdAt) < new Date(appliedFilters.fromDate)) match = false;
@@ -624,7 +656,7 @@ const TeamPipeline = () => {
 
 
       {/* Filter Section */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300 flex-shrink-0">
+      <div className={`bg-white rounded-xl border border-slate-200 shadow-sm transition-all duration-300 flex-shrink-0 ${isFilterExpanded ? '' : 'overflow-hidden'}`}>
         <div
           className={`px-5 py-3.5 cursor-pointer flex justify-between items-center transition-colors ${isFilterExpanded ? 'bg-blue-50/50 border-b border-slate-100' : 'hover:bg-slate-50'}`}
           onClick={() => setIsFilterExpanded(!isFilterExpanded)}
@@ -665,11 +697,18 @@ const TeamPipeline = () => {
                 />
               </div>
               <CustomSelect
+                label="Branch"
+                placeholder="All Branches"
+                value={filters.branch}
+                onChange={(val) => setFilters({ ...filters, branch: val, assignedTo: '' })}
+                options={branches.map(b => ({ value: b.id, label: b.name }))}
+              />
+              <CustomSelect
                 label="Assigned To"
                 placeholder="Any Owner"
                 value={filters.assignedTo}
                 onChange={(val) => setFilters({ ...filters, assignedTo: val })}
-                options={users.map(u => ({ value: u.id, label: u.name }))}
+                options={(filters.branch ? users.filter(u => String(u.branchId) === String(filters.branch)) : users).map(u => ({ value: u.id, label: u.name }))}
               />
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">From Date</label>

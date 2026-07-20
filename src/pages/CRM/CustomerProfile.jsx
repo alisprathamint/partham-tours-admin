@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
-import LeadProfileForm from './LeadProfileForm';
+import QueryProfileForm from './QueryProfileForm';
 import QueryDetailProfile from './QueryDetailProfile';
 
 const CustomerProfile = () => {
@@ -70,7 +70,7 @@ const CustomerProfile = () => {
   }
 
   return (
-    <LeadProfileForm 
+    <QueryProfileForm 
       lead={currentLead} 
       navigate={navigate}
       user={user}

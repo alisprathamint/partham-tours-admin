@@ -1,15 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { useAuth } from './AuthContext';
+import { useWebSocket } from './WebSocketContext';
 
 const NotificationContext = createContext();
 
 export const NotificationProvider = ({ children }) => {
   const { user, token } = useAuth();
+  const { subscribe } = useWebSocket();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user || !token) return;
     try {
       const res = await api.get('/notifications');
@@ -20,7 +22,7 @@ export const NotificationProvider = ({ children }) => {
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
     }
-  };
+  }, [user, token]);
 
   const markAsRead = async (id) => {
     try {
@@ -50,7 +52,16 @@ export const NotificationProvider = ({ children }) => {
       setNotifications([]);
       setUnreadCount(0);
     }
-  }, [user, token]);
+  }, [user, token, fetchNotifications]);
+
+  // Real-time: refresh notifications when a lead_assigned WS event is received
+  useEffect(() => {
+    if (!subscribe) return;
+    const unsub = subscribe('lead_assigned', () => {
+      fetchNotifications();
+    });
+    return unsub;
+  }, [subscribe, fetchNotifications]);
 
   return (
     <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead }}>

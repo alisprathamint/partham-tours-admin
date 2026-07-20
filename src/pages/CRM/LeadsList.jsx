@@ -3,10 +3,9 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useWebSocket } from '../../context/WebSocketContext';
-import { Eye, MessageSquare, Edit2, Search, FileText, Briefcase, MoreVertical, User, Mail, Phone, MapPin, Calendar, CheckCircle2, Clock, Map, ChevronDown, Filter, ChevronUp, Plus } from 'lucide-react';
+import { Eye, MessageSquare, Edit2, Search, FileText, Briefcase, MoreVertical, User, Mail, Phone, MapPin, Calendar, CheckCircle2, Clock, Map, ChevronDown, Filter, ChevronUp } from 'lucide-react';
 import FollowUpModal from './FollowUpModal';
 import SendQuotationModal from './SendQuotationModal';
-import AddQueryModal from './AddQueryModal';
 import api from '../../api/axios';
 
 const CustomSelect = ({ label, options, value, onChange, placeholder = "Select..." }) => {
@@ -63,14 +62,14 @@ const CustomSelect = ({ label, options, value, onChange, placeholder = "Select..
   );
 };
 
-const MyQueries = () => {
+const LeadsList = () => {
   const { user, token } = useAuth();
   const { subscribe } = useWebSocket();
   const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('In Progress'); // 'In Progress', 'Quotation Sent', 'Booking Confirmed', 'Overall Leads'
+  const [activeTab, setActiveTab] = useState('In Process'); // 'In Process', 'Callback Leads', 'Overall Leads', 'Un-Assigned'
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
@@ -84,6 +83,11 @@ const MyQueries = () => {
   const [bulkAssignSearch, setBulkAssignSearch] = useState("");
   const [isBulkAssigning, setIsBulkAssigning] = useState(false);
   const [branches, setBranches] = useState([]);
+  const [strategy, setStrategy] = useState("ROUND_ROBIN");
+  const [selectedExecutives, setSelectedExecutives] = useState([]);
+  const [executivePriorities, setExecutivePriorities] = useState({});
+
+
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -105,12 +109,16 @@ const MyQueries = () => {
     setTimeout(() => {
       setIsClosingBulk(false);
       setIsBulkAssignModalOpen(false);
+      setStrategy("ROUND_ROBIN");
+      setSelectedExecutives([]);
+      setExecutivePriorities({});
     }, 280);
   };
 
   // Dropdown State
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [dropdownCoords, setDropdownCoords] = useState({ top: 0, left: 0 });
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = () => setOpenDropdownId(null);
@@ -217,6 +225,25 @@ const MyQueries = () => {
     }
   };
 
+  const handleDeleteLead = async (leadId) => {
+    if (!window.confirm('Are you sure you want to delete this lead? This action cannot be undone.')) return;
+    try {
+      const res = await api.delete(`/crm/leads/${leadId}`);
+      if (res.data.success) {
+        setLeads(leads.filter(l => l.id !== leadId));
+        setFilteredLeads(filteredLeads.filter(l => l.id !== leadId));
+        if (selectedLeads.includes(leadId)) {
+          setSelectedLeads(selectedLeads.filter(id => id !== leadId));
+        }
+      } else {
+        alert('Failed to delete lead');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error deleting lead');
+    }
+  };
+
   // Filter States
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [users, setUsers] = useState([]);
@@ -242,16 +269,10 @@ const MyQueries = () => {
 
   const fetchLeads = async () => {
     try {
-      const response = await api.get('/crm/leads?type=QUERY');
+      const response = await api.get('/crm/leads?type=LEAD');
       const data = response.data;
       if (data.success) {
-        const allQueries = data.data;
-        // Admin and Super Admin see ALL queries; others see only their assigned ones
-        const isAdminRole = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
-        const filtered = isAdminRole 
-          ? allQueries 
-          : allQueries.filter(q => Number(q.assignedToId) === Number(user?.id));
-        setLeads(filtered);
+        setLeads(data.data);
       }
     } catch (err) {
       console.error('Error fetching leads:', err);
@@ -306,7 +327,7 @@ const MyQueries = () => {
     }
   }, [token, user]);
 
-  // Real-time: refetch leads when assignment or updates happen
+  // Real-time: refetch leads list when assignment or updates happen
   useEffect(() => {
     if (!subscribe) return;
     const unsubUpdate = subscribe('lead_updated', () => {
@@ -397,12 +418,10 @@ const MyQueries = () => {
     return `${months} Month ${days} Days`;
   };
 
-  // Filter leads based on active tab and applied filters
+  // Filter leads based on applied filters
   const filteredLeads = leads.filter(lead => {
-    // 1. Tab filtering
-    if (activeTab === 'In Progress' && !['IN_PROGRESS', 'NEW', 'ASSIGNED'].includes(lead.status)) return false;
-    if (activeTab === 'Quotation Sent' && lead.status !== 'PROPOSAL_SENT') return false;
-    if (activeTab === 'Booking Confirmed' && lead.status !== 'BOOKING_CONFIRMED') return false;
+    // Show 'NEW' and 'ASSIGNED' status leads
+    if (lead.status !== 'NEW' && lead.status !== 'ASSIGNED') return false;
 
     // 2. Applied Filters logic
     if (appliedFilters.leadType && lead.leadCategory && lead.leadCategory.toLowerCase() !== appliedFilters.leadType.toLowerCase()) return false;
@@ -467,26 +486,47 @@ const MyQueries = () => {
     }
     setBulkAssignTarget("");
     setBulkAssignSearch("");
+    setStrategy("ROUND_ROBIN");
+    setSelectedExecutives([]);
+    setExecutivePriorities({});
     setIsBulkAssignModalOpen(true);
   };
 
   const handleBulkAssignSubmit = async () => {
     if (assignMode === "EXECUTIVE" && !bulkAssignTarget) return alert("Please select an executive.");
     if (assignMode === "BRANCH" && !bulkAssignBranch) return alert("Please select a branch.");
+    if (assignMode === "STRATEGIC" && selectedExecutives.length === 0) return alert("Please select at least one executive.");
     
     setIsBulkAssigning(true);
     try {
-      const response = await api.put('/crm/leads/bulk-assign', {
+      const payload = {
         leadIds: selectedLeads,
-        assignedToId: assignMode === "EXECUTIVE" ? bulkAssignTarget : (assignMode === "SELF" ? user?.id?.toString() : null),
-        branchId: assignMode === "SELF" ? (user?.branchId?.toString() || null) : bulkAssignBranch
-      });
+        assignMode,
+      };
+
+      if (assignMode === "SELF") {
+        payload.assignedToId = user?.id?.toString();
+        payload.branchId = user?.branchId?.toString() || null;
+      } else if (assignMode === "BRANCH") {
+        payload.branchId = bulkAssignBranch;
+      } else if (assignMode === "EXECUTIVE") {
+        payload.assignedToId = bulkAssignTarget;
+        payload.branchId = bulkAssignBranch || null;
+      } else if (assignMode === "STRATEGIC") {
+        payload.branchId = bulkAssignBranch || null;
+        payload.strategy = strategy;
+        payload.executiveIds = selectedExecutives;
+        payload.priorities = executivePriorities;
+      }
+
+      const response = await api.put('/crm/leads/bulk-assign', payload);
       const data = response.data;
       if (data.success) {
         handleCloseBulkAssignModal();
         setBulkAssignTarget("");
         setBulkAssignBranch("");
         setBulkAssignSearch("");
+        setSelectedExecutives([]);
         setSelectedLeads([]);
         fetchLeads();
       } else {
@@ -500,6 +540,7 @@ const MyQueries = () => {
     }
   };
 
+
   const handleResetFilters = () => {
     const defaultFilters = {
       leadType: '', leadStage: '', leadSource: '',
@@ -510,25 +551,8 @@ const MyQueries = () => {
     setAppliedFilters(defaultFilters);
   };
 
-  const [isAddQueryModalOpen, setIsAddQueryModalOpen] = useState(false);
-
   return (
     <div className="space-y-4">
-      {/* Header with Add Query Button */}
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">My Queries</h1>
-          <p className="text-sm text-slate-500">Manage and track your active queries</p>
-        </div>
-        <button 
-          onClick={() => setIsAddQueryModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-sm"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          Add Query
-        </button>
-      </div>
-
       {/* Filter Results Section */}
       <div className={`bg-white rounded-xl border border-slate-200 shadow-sm transition-all duration-300 ${isFilterExpanded ? '' : 'overflow-hidden'}`}>
         <div 
@@ -682,28 +706,45 @@ const MyQueries = () => {
         )}
       </div>
 
-      {/* Tabs Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 gap-4">
-        <div className="flex flex-wrap gap-2">
-          {['In Progress', 'Quotation Sent', 'Booking Confirmed', 'Overall Leads'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 text-sm font-medium border rounded-md transition-colors ${
-                activeTab === tab 
-                  ? 'bg-blue-600 text-white border-blue-600' 
-                  : 'bg-white text-blue-600 border-blue-600 hover:bg-blue-50'
+      {/* Table Header Row */}
+      <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-4">
+          <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Leads List</h4>
+          {user?.role !== 'SALES_EXECUTIVE' && (
+            <button 
+              onClick={() => {
+                setIsSelectionMode(!isSelectionMode);
+                if (isSelectionMode) setSelectedLeads([]); // clear selection when canceling
+              }}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-2 ${
+                isSelectionMode 
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 shadow-sm'
               }`}
             >
-              {tab}
+              {isSelectionMode ? 'Cancel Selection' : 'Select Leads'}
             </button>
-          ))}
+          )}
         </div>
-        <div className="font-semibold text-slate-700 text-sm">
-          Total Record Found: {filteredLeads.length}
+        <div className="font-semibold text-slate-700 text-xs bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-250">
+          Total Leads: {filteredLeads.length}
         </div>
       </div>
 
+      {/* Floating Action Bar for Bulk Select */}
+      {selectedLeads.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center justify-between animate-in fade-in shadow-sm">
+          <div className="text-blue-800 font-semibold text-sm">
+            {selectedLeads.length} lead{selectedLeads.length > 1 ? 's' : ''} selected
+          </div>
+          <button
+            onClick={handleOpenBulkAssignModal}
+            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded text-sm transition-colors shadow-sm"
+          >
+            Assign Selected
+          </button>
+        </div>
+      )}
 
       {/* Leads Table */}
       <div className="bg-white rounded-2xl border border-slate-200 relative mb-6 shadow-sm overflow-hidden">
@@ -711,11 +752,20 @@ const MyQueries = () => {
         <table className="w-full text-left border-collapse min-w-[1200px]">
           <thead>
             <tr className="border-b border-slate-200 text-slate-700 font-medium text-[12px] bg-slate-50/50">
+              <th className="px-3.5 py-2 w-12 text-center font-normal border-r border-slate-200">
+                <input 
+                  type="checkbox" 
+                  checked={filteredLeads.length > 0 && selectedLeads.length === filteredLeads.length}
+                  onChange={handleSelectAll}
+                  className="w-3.5 h-3.5 rounded-md border-slate-300 text-slate-800 cursor-pointer transition-all focus:ring-0" 
+                />
+              </th>
               <th className="px-3.5 py-2 font-normal whitespace-nowrap border-r border-slate-200">Created Date</th>
               <th className="px-3.5 py-2 min-w-[200px] font-normal border-r border-slate-200">Customer Details</th>
               <th className="px-3.5 py-2 font-normal border-r border-slate-200">Requirement</th>
               <th className="px-3.5 py-2 font-normal text-center border-r border-slate-200">Status</th>
               <th className="px-3.5 py-2 min-w-[150px] font-normal border-r border-slate-200">Remarks</th>
+              <th className="px-3.5 py-2 font-normal text-center border-r border-slate-200">Follow Up</th>
               <th className="px-3.5 py-2 font-normal text-center border-r border-slate-200">Owner</th>
               <th className="px-3.5 py-2 text-center font-normal w-28">Action</th>
             </tr>
@@ -783,9 +833,23 @@ const MyQueries = () => {
                 return (
                  <tr 
                    key={lead.id} 
-                   onClick={() => navigate(`/crm/queries/${lead.id}`, { state: { lead } })}
-                   className={`align-middle border-b border-slate-100 transition-colors cursor-pointer hover:bg-slate-50/80 ${isLast ? 'border-b-0' : ''}`}
+                   onClick={() => {
+                     if (isSelectionMode) {
+                       handleSelectLead(lead.id);
+                     } else {
+                       navigate(`/crm/queries/${lead.id}`, { state: { lead } });
+                     }
+                   }}
+                   className={`align-middle border-b border-slate-100 transition-colors cursor-pointer hover:bg-slate-50/80 ${selectedLeads.includes(lead.id) ? 'bg-slate-50/80' : ''} ${isLast ? 'border-b-0' : ''}`}
                  >
+                  <td className="px-3.5 py-2 text-center align-middle border-r border-slate-100" onClick={(e) => e.stopPropagation()}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedLeads.includes(lead.id)}
+                      onChange={() => handleSelectLead(lead.id)}
+                      className="w-3.5 h-3.5 rounded-md border-slate-300 text-slate-800 cursor-pointer focus:ring-0 transition-all" 
+                    />
+                  </td>
                   <td className="px-3.5 py-2 text-[12px] text-slate-800 font-medium whitespace-nowrap align-middle border-r border-slate-100">
                     <div className="flex flex-col gap-0.5">
                       <span className="font-bold text-slate-800 capitalize">{fullDayStr}</span>
@@ -796,7 +860,9 @@ const MyQueries = () => {
                   <td className="px-3.5 py-2 align-middle border-r border-slate-100">
                     <div className="flex flex-col justify-center h-full">
                       <div className="font-bold text-slate-800 text-xs flex items-center gap-2 mb-0.5">
-                        <span className="hover:text-blue-600 hover:underline">
+                        <span 
+                          className={!isSelectionMode ? "cursor-pointer hover:text-blue-600 hover:underline" : ""}
+                        >
                           {lead.name}
                         </span>
                         {lead.isDuplicate && <span className="text-[9px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Dup</span>}
@@ -817,16 +883,17 @@ const MyQueries = () => {
                       </div>
                     </div>
                   </td>
-
                   <td className="px-3.5 py-2 text-xs text-slate-700 align-middle border-r border-slate-100">
                     <div 
-                      className="flex flex-col justify-center h-full p-1.5 -mx-1.5 rounded-lg transition-colors group hover:bg-slate-50"
-                      title="Click to view full requirements"
+                      className={`flex flex-col justify-center h-full p-1.5 -mx-1.5 rounded-lg transition-colors ${!isSelectionMode ? 'cursor-pointer group hover:bg-slate-50' : ''}`}
+                      title={!isSelectionMode ? "Click to view full requirements" : ""}
                     >
-                      <div className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors text-xs">{lead.destination || 'Not Specified'}</div>
-                      <div className="text-slate-850 text-[9.5px] mt-0.5 font-medium flex items-center gap-1 group-hover:text-blue-500 transition-colors">
-                        Click to view details
-                      </div>
+                      <div className={`font-bold text-slate-800 transition-colors text-xs ${!isSelectionMode ? 'group-hover:text-blue-600' : ''}`}>{lead.destination || 'Not Specified'}</div>
+                      {!isSelectionMode && (
+                        <div className="text-slate-850 text-[9.5px] mt-0.5 font-medium flex items-center gap-1 group-hover:text-blue-500 transition-colors">
+                          Click to view details
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-3.5 py-2 align-middle text-center border-r border-slate-100">
@@ -848,7 +915,29 @@ const MyQueries = () => {
                       }
                     </div>
                   </td>
-
+                  <td className="px-3.5 py-2 align-middle text-center border-r border-slate-100">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleFollowUpClick(lead); setOpenDropdownId(null); }}
+                      className="group flex flex-col items-center justify-center w-full h-full py-1 cursor-pointer"
+                      title="Click to add/update follow-up"
+                    >
+                      {lead.nextFollowUp ? (
+                        <div className="flex flex-col items-center">
+                          <div className="text-[10.5px] font-bold text-blue-600 whitespace-nowrap">
+                            {new Date(lead.nextFollowUp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </div>
+                          <div className="text-[9px] text-blue-400 font-medium mt-0.5 flex items-center gap-0.5 group-hover:text-blue-600 transition-colors">
+                            <Clock size={9} /> Update
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm transition-all hover:shadow-md">
+                          <Clock size={10} />
+                          Follow Up
+                        </div>
+                      )}
+                    </button>
+                  </td>
                   <td className="px-3.5 py-2 align-middle border-r border-slate-100">
                     <div className="flex items-center justify-start gap-2">
                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-[10px] shadow-sm ring-2 ring-white flex-shrink-0">
@@ -902,6 +991,8 @@ const MyQueries = () => {
                             <div className="h-px bg-slate-100 my-1 mx-3"></div>
                             <button onClick={(e) => { e.stopPropagation(); setActiveViewLead(lead); setIsViewDetailsOpen(true); setOpenDropdownId(null); }} className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"><Eye size={14} className="text-indigo-500" /> View Full Profile</button>
                             <button onClick={(e) => { e.stopPropagation(); setActiveCommentsLead(lead); setIsCommentsOpen(true); setOpenDropdownId(null); }} className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"><MessageSquare size={14} className="text-purple-500" /> Internal Notes</button>
+                            <div className="h-px bg-slate-100 my-1 mx-3"></div>
+                            <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); handleDeleteLead(lead.id); }} className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors">Delete Query</button>
                           </div>,
                           document.body
                         )}
@@ -1097,6 +1188,7 @@ const MyQueries = () => {
         isOpen={isFollowUpModalOpen}
         onClose={() => setIsFollowUpModalOpen(false)}
         lead={activeFollowUpLead}
+        user={user}
         token={token}
         onFollowUpSaved={fetchLeads}
       />
@@ -1110,8 +1202,8 @@ const MyQueries = () => {
 
       {/* Bulk Assign Modal */}
       {isBulkAssignModalOpen && createPortal(
-        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm ${isClosingBulk ? 'animate-fade-out' : 'animate-fade-in'}`}>
-          <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-visible ${isClosingBulk ? 'animate-slide-out-left' : 'animate-slide-in-left'} border border-slate-100 flex flex-col max-h-[90vh]`}>
+        <div className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm ${isClosingBulk ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`bg-white rounded-2xl shadow-2xl w-full ${assignMode === 'STRATEGIC' ? 'max-w-5xl' : 'max-w-xl'} overflow-visible ${isClosingBulk ? 'animate-slide-out-left' : 'animate-slide-in-left'} border border-slate-100 flex flex-col max-h-[90vh] transition-all duration-300`}>
             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0 rounded-t-2xl">
               <h3 className="font-bold text-slate-800 text-lg">Bulk Assign Leads</h3>
               <button onClick={handleCloseBulkAssignModal} className="text-slate-800 hover:text-slate-700 p-1.5 hover:bg-slate-200 rounded-full transition-colors">
@@ -1120,58 +1212,99 @@ const MyQueries = () => {
             </div>
             <div className="p-6 overflow-visible min-h-0 flex-1 flex flex-col">
               <div className="mb-6 text-base text-slate-800">
-                You are about to assign <strong className="text-blue-600 text-lg">{selectedLeads.length}</strong> selected lead(s) to a new owner.
+                You are about to assign <strong className="text-blue-600 text-lg">{selectedLeads.length}</strong> selected lead{selectedLeads.length > 1 ? 's' : ''} to a new owner.
               </div>
               
+              {assignMode === 'STRATEGIC' && strategy === 'PRIORITY_WEIGHTED' && (
+                <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs leading-relaxed text-left">
+                  <strong>Priority is used only for this assignment (not saved).</strong> Select team members, then set priority 1-99 — higher numbers receive more leads. Default is 1 if unset.
+                </div>
+              )}
+              
               {/* Assignment Mode Selection */}
-              {user?.role !== 'BRANCH_MANAGER' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <label className={`flex-1 flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${assignMode === 'SELF' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}>
-                    <input 
-                      type="radio" 
-                      name="assignMode" 
-                      checked={assignMode === 'SELF'} 
-                      onChange={() => setAssignMode('SELF')}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <div>
-                      <div className="font-bold text-slate-800 text-sm">Assign to Me</div>
-                      <div className="text-xs text-slate-700 mt-0.5">Quickly assign to yourself</div>
-                    </div>
-                  </label>
+              {assignMode !== 'STRATEGIC' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  {user?.role !== 'BRANCH_MANAGER' && (
+                    <>
+                      <label className={`flex-1 flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${assignMode === 'SELF' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}>
+                        <input 
+                          type="radio" 
+                          name="assignMode" 
+                          checked={assignMode === 'SELF'} 
+                          onChange={() => {
+                            setAssignMode('SELF');
+                            setBulkAssignTarget("");
+                            setSelectedExecutives([]);
+                          }}
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <div>
+                          <div className="font-bold text-slate-800 text-sm">Assign to Me</div>
+                          <div className="text-xs text-slate-700 mt-0.5">Quickly assign to yourself</div>
+                        </div>
+                      </label>
 
-                  <label className={`flex-1 flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${assignMode === 'BRANCH' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}>
-                    <input 
-                      type="radio" 
-                      name="assignMode" 
-                      checked={assignMode === 'BRANCH'} 
-                      onChange={() => setAssignMode('BRANCH')}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <div>
-                      <div className="font-bold text-slate-800 text-sm">Assign to Branch</div>
-                      <div className="text-xs text-slate-700 mt-0.5">Move to branch pool</div>
-                    </div>
-                  </label>
+                      <label className={`flex-1 flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${assignMode === 'BRANCH' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}>
+                        <input 
+                          type="radio" 
+                          name="assignMode" 
+                          checked={assignMode === 'BRANCH'} 
+                          onChange={() => {
+                            setAssignMode('BRANCH');
+                            setBulkAssignTarget("");
+                            setSelectedExecutives([]);
+                          }}
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <div>
+                          <div className="font-bold text-slate-800 text-sm">Assign to Branch</div>
+                          <div className="text-xs text-slate-700 mt-0.5">Move to branch pool</div>
+                        </div>
+                      </label>
+                    </>
+                  )}
                   
                   <label className={`flex-1 flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${assignMode === 'EXECUTIVE' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}>
                     <input 
                       type="radio" 
                       name="assignMode" 
                       checked={assignMode === 'EXECUTIVE'} 
-                      onChange={() => setAssignMode('EXECUTIVE')}
+                      onChange={() => {
+                        setAssignMode('EXECUTIVE');
+                        setBulkAssignTarget("");
+                        setSelectedExecutives([]);
+                      }}
                       className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
                     <div>
-                      <div className="font-bold text-slate-800 text-sm">Sales Executive</div>
+                      <div className="font-bold text-slate-800 text-sm">Direct Assign</div>
                       <div className="text-xs text-slate-700 mt-0.5">Assign to specific person</div>
+                    </div>
+                  </label>
+
+                  <label className={`flex-1 flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${assignMode === 'STRATEGIC' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}>
+                    <input 
+                      type="radio" 
+                      name="assignMode" 
+                      checked={assignMode === 'STRATEGIC'} 
+                      onChange={() => {
+                        setAssignMode('STRATEGIC');
+                        setBulkAssignTarget("");
+                        setSelectedExecutives([]);
+                      }}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <div>
+                      <div className="font-bold text-slate-800 text-sm">Strategic Assign</div>
+                      <div className="text-xs text-slate-700 mt-0.5">Distribute leads using rules</div>
                     </div>
                   </label>
                 </div>
               )}
-              
-              {assignMode !== 'SELF' && (
-                <div className={`grid ${assignMode === 'EXECUTIVE' && user?.role !== 'BRANCH_MANAGER' ? 'grid-cols-2' : 'grid-cols-1'} gap-4 mb-4`}>
+
+              {/* Branch and Search Filters */}
+              {assignMode !== 'SELF' && assignMode !== 'STRATEGIC' && (
+                <div className={`grid ${assignMode !== 'BRANCH' && user?.role !== 'BRANCH_MANAGER' ? 'grid-cols-2' : 'grid-cols-1'} gap-4 mb-4`}>
                   {user?.role !== 'BRANCH_MANAGER' && (
                     <CustomSelect 
                       label="Select Branch"
@@ -1180,12 +1313,13 @@ const MyQueries = () => {
                       onChange={(val) => {
                         setBulkAssignBranch(val);
                         setBulkAssignTarget("");
+                        setSelectedExecutives([]);
                       }}
                       options={branches.map(b => ({ value: b.id.toString(), label: b.name }))}
                     />
                   )}
                   
-                  {assignMode === 'EXECUTIVE' && (
+                  {assignMode !== 'BRANCH' && (
                     <div className="relative flex flex-col justify-end">
                       <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
                         Search Executive
@@ -1206,6 +1340,7 @@ const MyQueries = () => {
                 </div>
               )}
 
+              {/* Direct Assign List */}
               {assignMode === 'EXECUTIVE' && (
                 bulkAssignBranch ? (
                   <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
@@ -1301,15 +1436,263 @@ const MyQueries = () => {
                   </div>
                 )
               )}
+
+              {/* Strategic Assignment Layout */}
+              {assignMode === 'STRATEGIC' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4 h-[350px]">
+                  {/* Column 1: Strategy */}
+                  <div className="border border-slate-200 rounded-xl p-3 flex flex-col gap-2.5 text-left bg-white overflow-y-auto max-h-full">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+                      <Briefcase size={14} className="text-blue-600" /> STRATEGY
+                    </label>
+                    
+                    <div 
+                      onClick={() => setStrategy('ROUND_ROBIN')}
+                      className={`p-2.5 border rounded-xl cursor-pointer transition-all ${strategy === 'ROUND_ROBIN' ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="radio" 
+                          checked={strategy === 'ROUND_ROBIN'} 
+                          onChange={() => setStrategy('ROUND_ROBIN')}
+                          className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="font-bold text-slate-800 text-xs">Round Robin</span>
+                      </div>
+                      <p className="text-[10px] text-slate-700 mt-1 leading-relaxed">
+                        Leads rotate equally in sequence across the team.
+                      </p>
+                    </div>
+
+                    <div 
+                      onClick={() => setStrategy('LEAST_LOADED')}
+                      className={`p-2.5 border rounded-xl cursor-pointer transition-all ${strategy === 'LEAST_LOADED' ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="radio" 
+                          checked={strategy === 'LEAST_LOADED'} 
+                          onChange={() => setStrategy('LEAST_LOADED')}
+                          className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="font-bold text-slate-800 text-xs">Least Loaded</span>
+                      </div>
+                      <p className="text-[10px] text-slate-700 mt-1 leading-relaxed">
+                        Leads go to agents with the fewest active leads.
+                      </p>
+                    </div>
+
+                    <div 
+                      onClick={() => setStrategy('PRIORITY_WEIGHTED')}
+                      className={`p-2.5 border rounded-xl cursor-pointer transition-all ${strategy === 'PRIORITY_WEIGHTED' ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="radio" 
+                          checked={strategy === 'PRIORITY_WEIGHTED'} 
+                          onChange={() => setStrategy('PRIORITY_WEIGHTED')}
+                          className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="font-bold text-slate-800 text-xs">Priority Weighted</span>
+                      </div>
+                      <p className="text-[10px] text-slate-700 mt-1 leading-relaxed">
+                        Leads are distributed by seniority or user weights.
+                      </p>
+                    </div>
+
+                    <div 
+                      onClick={() => setStrategy('PERFORMANCE_BASED')}
+                      className={`p-2.5 border rounded-xl cursor-pointer transition-all ${strategy === 'PERFORMANCE_BASED' ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="radio" 
+                          checked={strategy === 'PERFORMANCE_BASED'} 
+                          onChange={() => setStrategy('PERFORMANCE_BASED')}
+                          className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="font-bold text-slate-800 text-xs">Performance Based</span>
+                      </div>
+                      <p className="text-[10px] text-slate-700 mt-1 leading-relaxed">
+                        Higher converting executives receive more leads.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Column 2: Branches */}
+                  <div className="border border-slate-200 rounded-xl flex flex-col overflow-hidden bg-white text-left">
+                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex items-center gap-1.5">
+                      <MapPin size={14} className="text-blue-600" />
+                      <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Select Branch</span>
+                    </div>
+                    <div className="overflow-y-auto flex-1 p-3 space-y-2">
+                      {branches.map(b => {
+                        const isSelected = bulkAssignBranch === b.id.toString();
+                        return (
+                          <label 
+                            key={b.id}
+                            className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${isSelected ? 'border-blue-400 bg-blue-50/30' : 'border-slate-100 hover:border-slate-200'}`}
+                          >
+                            <input 
+                              type="radio"
+                              name="strategicBranch"
+                              checked={isSelected}
+                              onChange={() => {
+                                setBulkAssignBranch(b.id.toString());
+                                setBulkAssignTarget("");
+                                setSelectedExecutives([]);
+                              }}
+                              className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-semibold text-slate-800 truncate">{b.name}</div>
+                              <div className="text-[11px] text-slate-700 truncate">{b.city}</div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Column 3: Sales Executives */}
+                  <div className="border border-slate-200 rounded-xl flex flex-col overflow-hidden bg-white text-left">
+                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex justify-between items-center">
+                      <div className="flex items-center gap-1.5">
+                        <User size={14} className="text-blue-600" />
+                        <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Sales Executives</span>
+                      </div>
+                      {bulkAssignBranch && (
+                        <button 
+                          onClick={() => {
+                            const branchUsers = users.filter(u => u.branchId?.toString() === bulkAssignBranch && u.id !== user?.id);
+                            if (selectedExecutives.length === branchUsers.length) {
+                              setSelectedExecutives([]);
+                            } else {
+                              setSelectedExecutives(branchUsers.map(u => u.id));
+                            }
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-semibold"
+                        >
+                          {selectedExecutives.length === users.filter(u => u.branchId?.toString() === bulkAssignBranch && u.id !== user?.id).length ? 'Clear' : 'All'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="overflow-y-auto flex-1 p-3 space-y-2">
+                      {bulkAssignBranch ? (
+                        <>
+                          {users
+                            .filter(u => u.branchId?.toString() === bulkAssignBranch && u.id !== user?.id)
+                            .filter(u => {
+                              if (!bulkAssignSearch) return true;
+                              const s = bulkAssignSearch.toLowerCase();
+                              return u.name.toLowerCase().includes(s) || u.email.toLowerCase().includes(s);
+                            })
+                            .map(u => {
+                              const isChecked = selectedExecutives.includes(u.id);
+                              return (
+                                <div 
+                                  key={u.id}
+                                  className={`flex flex-col gap-2 p-2.5 border rounded-lg transition-all ${isChecked ? 'border-blue-400 bg-blue-50/20' : 'border-slate-100 hover:border-slate-200'}`}
+                                >
+                                  <label 
+                                    className="flex items-center gap-3 cursor-pointer"
+                                  >
+                                    <input 
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        if (isChecked) {
+                                          setSelectedExecutives(selectedExecutives.filter(id => id !== u.id));
+                                          const newPriorities = { ...executivePriorities };
+                                          delete newPriorities[u.id];
+                                          setExecutivePriorities(newPriorities);
+                                        } else {
+                                          setSelectedExecutives([...selectedExecutives, u.id]);
+                                          setExecutivePriorities({ ...executivePriorities, [u.id]: 1 });
+                                        }
+                                      }}
+                                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-xs font-semibold text-slate-800 truncate">{u.name}</div>
+                                      <div className="text-[10px] text-slate-700 truncate">{u.email}</div>
+                                    </div>
+                                  </label>
+
+                                  {isChecked && strategy === 'PRIORITY_WEIGHTED' && (
+                                    <div className="flex items-center gap-2 pl-7 animate-in slide-in-from-top-1 duration-150">
+                                      <input 
+                                        type="number"
+                                        min="1"
+                                        max="99"
+                                        value={executivePriorities[u.id] || 1}
+                                        onChange={(e) => {
+                                          const val = Math.max(1, Math.min(99, parseInt(e.target.value) || 1));
+                                          setExecutivePriorities({ ...executivePriorities, [u.id]: val });
+                                        }}
+                                        className="w-16 px-1.5 py-0.5 text-xs border border-slate-300 rounded focus:outline-none focus:border-blue-500 text-center"
+                                        placeholder="1-99"
+                                      />
+                                      <span className="text-[10px] text-slate-700 font-medium">Priority</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          {users.filter(u => u.branchId?.toString() === bulkAssignBranch && u.id !== user?.id).length === 0 && (
+                            <div className="text-center text-slate-700 text-xs py-8">
+                              No sales executives found.
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-700 h-full py-8 text-center">
+                          <Briefcase size={28} className="mb-2 text-slate-800" />
+                          <p className="text-xs font-medium">Select a branch first</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
+            
             <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/80 shrink-0 rounded-b-2xl">
+              {assignMode === 'STRATEGIC' && (
+                <button 
+                  onClick={() => {
+                    if (user?.role === 'BRANCH_MANAGER') {
+                      setAssignMode('EXECUTIVE');
+                    } else {
+                      setAssignMode('BRANCH');
+                    }
+                    setBulkAssignBranch("");
+                    setSelectedExecutives([]);
+                  }} 
+                  className="px-5 py-2 text-sm text-slate-700 font-bold hover:bg-slate-100 border border-slate-200 bg-white rounded-lg transition-colors mr-auto"
+                >
+                  Back
+                </button>
+              )}
               <button onClick={handleCloseBulkAssignModal} className="px-5 py-2 text-sm text-slate-800 font-bold hover:bg-slate-200 rounded-lg transition-colors">
                 Cancel
               </button>
               <button 
                 onClick={handleBulkAssignSubmit} 
-                disabled={isBulkAssigning || (assignMode === 'BRANCH' && !bulkAssignBranch) || (assignMode === 'EXECUTIVE' && (!bulkAssignBranch || !bulkAssignTarget))}
-                className={`px-5 py-2 text-white text-sm font-bold rounded-lg transition-colors shadow-md ${isBulkAssigning || (assignMode === 'BRANCH' && !bulkAssignBranch) || (assignMode === 'EXECUTIVE' && (!bulkAssignBranch || !bulkAssignTarget)) ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'}`}
+                disabled={
+                  isBulkAssigning || 
+                  (assignMode === 'BRANCH' && !bulkAssignBranch) || 
+                  (assignMode === 'EXECUTIVE' && (!bulkAssignBranch || !bulkAssignTarget)) ||
+                  (assignMode === 'STRATEGIC' && (!bulkAssignBranch || selectedExecutives.length === 0))
+                }
+                className={`px-5 py-2 text-white text-sm font-bold rounded-lg transition-colors shadow-md ${
+                  isBulkAssigning || 
+                  (assignMode === 'BRANCH' && !bulkAssignBranch) || 
+                  (assignMode === 'EXECUTIVE' && (!bulkAssignBranch || !bulkAssignTarget)) ||
+                  (assignMode === 'STRATEGIC' && (!bulkAssignBranch || selectedExecutives.length === 0))
+                    ? 'bg-blue-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
+                }`}
               >
                 {isBulkAssigning ? 'Assigning...' : `Assign ${selectedLeads.length} Leads`}
               </button>
@@ -1318,6 +1701,7 @@ const MyQueries = () => {
         </div>,
         document.body
       )}
+
       {/* View Details Modal */}
       {isViewDetailsOpen && activeViewLead && createPortal(
         <div className={`fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm ${isClosingViewDetails ? 'animate-fade-out' : 'animate-fade-in'}`}>
@@ -1576,18 +1960,8 @@ const MyQueries = () => {
         </div>, document.body
       )}
 
-      {/* Add Query Modal */}
-      <AddQueryModal
-        isOpen={isAddQueryModalOpen}
-        onClose={() => setIsAddQueryModalOpen(false)}
-        user={user}
-        onSuccess={(newLead) => {
-          fetchLeads();
-        }}
-      />
-
     </div>
   );
 };
 
-export default MyQueries;
+export default LeadsList;

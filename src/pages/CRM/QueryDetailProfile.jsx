@@ -1615,7 +1615,7 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
           duration: currentLead.numDays ? `${currentLead.numDays} Days` : 'N/A',
           travelDate: currentLead.travelDate ? new Date(currentLead.travelDate).toLocaleDateString('en-GB') : 'N/A'
         };
-        return (
+        return createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
             <div className="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl border border-slate-200 mx-4 relative animate-in fade-in zoom-in-95 duration-150">
               <h3 className="font-extrabold text-slate-800 text-base mb-4 flex items-center gap-2 border-b pb-3">
@@ -1654,7 +1654,8 @@ const QueryDetailProfile = ({ currentLead, fetchLeadDetails, navigate, user }) =
                 Close Preview
               </button>
             </div>
-          </div>
+          </div>,
+          document.body
         );
       })()}
     </div>

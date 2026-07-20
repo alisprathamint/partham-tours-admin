@@ -42,7 +42,7 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    if (error.response && error.response.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/login')) {
       
       // If we are already refreshing, push the failed request to queue
       if (isRefreshing) {

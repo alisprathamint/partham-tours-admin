@@ -68,8 +68,8 @@ export const WebSocketProvider = ({ children, token }) => {
 
     ws.onclose = (e) => {
       setIsConnected(false);
-      // 4001 = intentional unauthorized close, don't reconnect
-      if (e.code === 4001 || isIntentionalClose.current) return;
+      // 4000 = replaced by new connection, 4001 = intentional unauthorized close, don't reconnect
+      if (e.code === 4000 || e.code === 4001 || isIntentionalClose.current) return;
       // Reconnect after 3 seconds
       reconnectTimerRef.current = setTimeout(() => {
         connect();
