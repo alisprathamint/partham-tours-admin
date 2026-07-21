@@ -277,92 +277,120 @@ img {
 @layer base {
   .dark-theme {
     color-scheme: dark;
-    background-color: #0f172a !important; /* slate-900 */
-    color: #f8fafc !important; /* slate-50 */
+    background-color: #0f172a !important;
+    /* slate-900 */
+    color: #f8fafc !important;
+    /* slate-50 */
   }
 
   /* Override standard Tailwind light classes to be dark */
   .dark-theme .bg-white {
-    background-color: #1e293b !important; /* slate-800 */
+    background-color: #1e293b !important;
+    /* slate-800 */
   }
-  
-  .dark-theme .text-gray-900, .dark-theme .text-slate-900 {
+
+  .dark-theme .text-gray-900,
+  .dark-theme .text-slate-900 {
     color: #f8fafc !important;
   }
-  
-  .dark-theme .text-gray-800, .dark-theme .text-slate-800 {
+
+  .dark-theme .text-gray-800,
+  .dark-theme .text-slate-800 {
     color: #f1f5f9 !important;
   }
 
-  .dark-theme .text-gray-700, .dark-theme .text-slate-700 {
+  .dark-theme .text-gray-700,
+  .dark-theme .text-slate-700 {
     color: #e2e8f0 !important;
   }
-  
-  .dark-theme .text-gray-600, .dark-theme .text-slate-600 {
+
+  .dark-theme .text-gray-600,
+  .dark-theme .text-slate-600 {
     color: #cbd5e1 !important;
   }
 
-  .dark-theme .text-gray-500, .dark-theme .text-slate-500 {
+  .dark-theme .text-gray-500,
+  .dark-theme .text-slate-500 {
     color: #94a3b8 !important;
   }
 
-  .dark-theme .bg-gray-50, .dark-theme .bg-slate-50, .dark-theme .bg-slate-100, .dark-theme .bg-gray-100 {
+  .dark-theme .bg-gray-50,
+  .dark-theme .bg-slate-50,
+  .dark-theme .bg-slate-100,
+  .dark-theme .bg-gray-100 {
     background-color: #0f172a !important;
   }
-  
-  .dark-theme .border-gray-200, .dark-theme .border-slate-200, .dark-theme .border-slate-100, .dark-theme .border-gray-100 {
+
+  .dark-theme .border-gray-200,
+  .dark-theme .border-slate-200,
+  .dark-theme .border-slate-100,
+  .dark-theme .border-gray-100 {
     border-color: #334155 !important;
   }
-  
-  .dark-theme .border-gray-300, .dark-theme .border-slate-300 {
+
+  .dark-theme .border-gray-300,
+  .dark-theme .border-slate-300 {
     border-color: #475569 !important;
   }
 
   /* Hover states */
-  .dark-theme .hover\:bg-gray-50:hover, .dark-theme .hover\:bg-slate-50:hover {
+  .dark-theme .hover\:bg-gray-50:hover,
+  .dark-theme .hover\:bg-slate-50:hover {
     background-color: #334155 !important;
   }
 
-  .dark-theme .hover\:bg-gray-100:hover, .dark-theme .hover\:bg-slate-100:hover {
+  .dark-theme .hover\:bg-gray-100:hover,
+  .dark-theme .hover\:bg-slate-100:hover {
     background-color: #475569 !important;
   }
 
   /* Inputs, selects, and pseudo-inputs (like CustomSelect) */
-  .dark-theme input, .dark-theme select, .dark-theme textarea {
-    background-color: #0f172a !important; /* slate-900 */
+  .dark-theme input,
+  .dark-theme select,
+  .dark-theme textarea {
+    background-color: #0f172a !important;
+    /* slate-900 */
     color: #f8fafc !important;
     border-color: #334155 !important;
   }
-  
+
   /* Fix placeholders globally in dark mode */
   .dark-theme ::placeholder {
-    color: #94a3b8 !important; /* slate-400 */
+    color: #94a3b8 !important;
+    /* slate-400 */
     opacity: 1 !important;
   }
 
   /* Target opacity utility classes that might have been missed */
-  .dark-theme .bg-slate-50\/50, .dark-theme .bg-slate-100\/50, .dark-theme .bg-slate-50\/80 {
+  .dark-theme .bg-slate-50\/50,
+  .dark-theme .bg-slate-100\/50,
+  .dark-theme .bg-slate-50\/80 {
     background-color: #0f172a !important;
   }
 
   /* Ensure labels have good contrast */
-  .dark-theme label, .dark-theme .font-medium, .dark-theme .font-bold {
+  .dark-theme label,
+  .dark-theme .font-medium,
+  .dark-theme .font-bold {
     color: #e2e8f0 !important;
   }
-  
+
   /* Role Badges (using .rounded-full to target pills without affecting layout bg) */
   .dark-theme .bg-purple-100.rounded-full {
     background-color: rgba(168, 85, 247, 0.15) !important;
     color: #c084fc !important;
   }
+
   .dark-theme .bg-indigo-100.rounded-full {
     background-color: rgba(99, 102, 241, 0.15) !important;
     color: #818cf8 !important;
   }
+
   .dark-theme .bg-blue-100.rounded-full {
     background-color: rgba(59, 130, 246, 0.15) !important;
     color: #60a5fa !important;
   }
+
   .dark-theme .bg-slate-100.rounded-full {
     background-color: rgba(148, 163, 184, 0.15) !important;
     color: #e2e8f0 !important;
@@ -371,39 +399,52 @@ img {
   /* Tables */
   .dark-theme thead {
     background-color: #0f172a !important;
-    color: #cbd5e1 !important; /* slate-300 for better visibility than slate-400 */
+    color: #cbd5e1 !important;
+    /* slate-300 for better visibility than slate-400 */
   }
 
   /* Status Badges & Active States */
-  .dark-theme .bg-blue-50, .dark-theme .hover\:bg-blue-50:hover {
+  .dark-theme .bg-blue-50,
+  .dark-theme .hover\:bg-blue-50:hover {
     background-color: rgba(59, 130, 246, 0.15) !important;
     color: #60a5fa !important;
   }
-  .dark-theme .text-blue-700, .dark-theme .text-blue-600 {
+
+  .dark-theme .text-blue-700,
+  .dark-theme .text-blue-600 {
     color: #60a5fa !important;
   }
-  
-  .dark-theme .bg-emerald-50, .dark-theme .hover\:bg-emerald-50:hover {
+
+  .dark-theme .bg-emerald-50,
+  .dark-theme .hover\:bg-emerald-50:hover {
     background-color: rgba(16, 185, 129, 0.15) !important;
     color: #34d399 !important;
   }
-  .dark-theme .text-emerald-700, .dark-theme .text-emerald-600 {
+
+  .dark-theme .text-emerald-700,
+  .dark-theme .text-emerald-600 {
     color: #34d399 !important;
   }
-  
-  .dark-theme .bg-rose-50, .dark-theme .hover\:bg-rose-50:hover {
+
+  .dark-theme .bg-rose-50,
+  .dark-theme .hover\:bg-rose-50:hover {
     background-color: rgba(244, 63, 94, 0.15) !important;
     color: #fb7185 !important;
   }
-  .dark-theme .text-rose-700, .dark-theme .text-rose-600 {
+
+  .dark-theme .text-rose-700,
+  .dark-theme .text-rose-600 {
     color: #fb7185 !important;
   }
-  
-  .dark-theme .bg-amber-50, .dark-theme .hover\:bg-amber-50:hover {
+
+  .dark-theme .bg-amber-50,
+  .dark-theme .hover\:bg-amber-50:hover {
     background-color: rgba(245, 158, 11, 0.15) !important;
     color: #fbbf24 !important;
   }
-  .dark-theme .text-amber-700, .dark-theme .text-amber-600 {
+
+  .dark-theme .text-amber-700,
+  .dark-theme .text-amber-600 {
     color: #fbbf24 !important;
   }
 }
